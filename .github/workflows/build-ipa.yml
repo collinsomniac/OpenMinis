@@ -77,6 +77,7 @@ jobs:
             -derivedDataPath build/dd \
             CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO \
             CURRENT_PROJECT_VERSION=$BUILD \
+            'OTHER_SWIFT_FLAGS=$(inherited) -Xfrontend -solver-expression-time-threshold=600 -Xfrontend -solver-memory-threshold=2000000000' \
             build 2>&1 | tee build.log | grep -E "error:|BUILD (SUCCEEDED|FAILED)" | head -200
 
       - name: Upload build log
