@@ -15,8 +15,8 @@
 #include <unistd.h>
 
 // Swift bridge — generated header
-#if __has_include("Minis-Swift.h")
-#import "Minis-Swift.h"
+#if __has_include("Nabla-Swift.h")
+#import "Nabla-Swift.h"
 #else
 @interface SessionsOffloadBridge : NSObject
 + (NSDictionary * _Nonnull)querySessionsWithSessionIds:(NSArray<NSString *> * _Nullable)sessionIds

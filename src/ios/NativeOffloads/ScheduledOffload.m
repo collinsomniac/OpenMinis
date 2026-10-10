@@ -15,8 +15,8 @@
 #include "kernel/native_offload.h"
 #include <unistd.h>
 
-#if __has_include("Minis-Swift.h")
-#import "Minis-Swift.h"
+#if __has_include("Nabla-Swift.h")
+#import "Nabla-Swift.h"
 #else
 @interface ScheduledOffloadBridge : NSObject
 + (NSDictionary * _Nonnull)createWithArgs:(NSDictionary * _Nonnull)args;

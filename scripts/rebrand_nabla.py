@@ -37,6 +37,7 @@ PAIRS = [
     ("MinisBackup", "NablaBackup"),
     ("Minis Backup", "Nabla Backup"),
     ("minis://", "nabla://"),
+    ("Minis-Swift.h", "Nabla-Swift.h"),   # ObjC -> generated Swift header follows PRODUCT_NAME
 ]
 
 TEXT_EXT = {".swift", ".plist", ".entitlements", ".pbxproj", ".xcconfig",
