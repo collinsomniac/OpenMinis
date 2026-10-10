@@ -775,7 +775,7 @@ struct MinisApp: App {
         guard previous != current else { return }
         UserDefaults.standard.set(current, forKey: key)
 
-        guard let container = fm.containerURL(forSecurityApplicationGroupIdentifier: "group.io.github.collinsomniac.nabla") else { return }
+        let container = AppGroupResolver.container
         let dir = container.appendingPathComponent("NablaConfig", isDirectory: true)
         try? fm.createDirectory(at: dir, withIntermediateDirectories: true)
         let url = dir.appendingPathComponent("fp-sync-trace.log")
@@ -1164,10 +1164,9 @@ struct MinisApp: App {
         let library = fm.urls(for: .libraryDirectory, in: .userDomainMask).first!
         // Not force-unwrapped: if the app group is not provisioned (a free team may not grant it),
         // the old `!` killed the app at launch. Skip the migration instead.
-        guard let container = fm.containerURL(forSecurityApplicationGroupIdentifier: "group.io.github.collinsomniac.nabla") else {
-            lifecycleLog.error("[AppGroup] container unavailable; skipping shared-dir migration")
-            return
-        }
+        // AppGroupResolver never returns nil: it falls back to a private container when the profile
+        // grants no app group. The old force-unwrap here crashed the app at launch.
+        let container = AppGroupResolver.container
 
         let migrations: [(source: URL, dest: URL, label: String)] = [
             // Legacy Library/MinisChat/shared → new shared

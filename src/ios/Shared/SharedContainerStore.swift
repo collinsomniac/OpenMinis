@@ -3,7 +3,12 @@ import Foundation
 /// Reads and writes PendingShare data to the App Group shared container.
 /// Compiled into both the main app target and the Share Extension target.
 enum SharedContainerStore {
-    static let appGroupID = "group.io.github.collinsomniac.nabla"
+    /// Resolved at runtime: the signer derives the group from the final bundle id (which carries a
+    /// team-id suffix on a sideloaded build), so the hardcoded id did not match the granted one.
+    static var appGroupID: String { AppGroupResolver.grantedGroupID ?? "group.io.github.collinsomniac.nabla" }
+
+    /// Shared container, or a private fallback when no group was granted. Never nil.
+    static var container: URL { AppGroupResolver.container }
 
     private static let pendingShareKey = "pendingShare"
 
@@ -13,9 +18,7 @@ enum SharedContainerStore {
 
     /// Directory in the shared container for transferring attachment files.
     static var sharedFileDirectory: URL? {
-        FileManager.default
-            .containerURL(forSecurityApplicationGroupIdentifier: appGroupID)?
-            .appendingPathComponent("ShareExtension", isDirectory: true)
+        container.appendingPathComponent("ShareExtension", isDirectory: true)
     }
 
     // MARK: - Write (called by Share Extension)

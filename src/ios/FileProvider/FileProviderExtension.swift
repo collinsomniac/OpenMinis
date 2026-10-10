@@ -13,9 +13,7 @@ final class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
 
     /// Root directory for all FileProvider-visible files in the App Group container.
     static var providerRoot: URL {
-        let container = FileManager.default.containerURL(
-            forSecurityApplicationGroupIdentifier: "group.io.github.collinsomniac.nabla"
-        )!
+        let container = AppGroupResolver.container
         let url = container.appendingPathComponent("MinisFileProvider", isDirectory: true)
         try? FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
         return url
