@@ -42,8 +42,14 @@ n_bundle = text.count("PRODUCT_BUNDLE_IDENTIFIER = com.openminis.app;")
 text = text.replace("PRODUCT_BUNDLE_IDENTIFIER = com.openminis.app;",
                     f"PRODUCT_BUNDLE_IDENTIFIER = {NEW_BUNDLE};")
 
+# --- 2b. deployment target -----------------------------------------------------------------------
+# Some targets still declare iOS 16.x while the code uses 17.5+ API (`buildLimitedAvailability` in
+# MemoryManagementView). The sideload target is a single iOS 27 device; align everything on 26.2.
+n_dep = len(re.findall(r"IPHONEOS_DEPLOYMENT_TARGET = 16\.\d;", text))
+text = re.sub(r"IPHONEOS_DEPLOYMENT_TARGET = 16\.\d;", "IPHONEOS_DEPLOYMENT_TARGET = 26.2;", text)
+
 PBX.write_text(text)
-print(f"project: {before} -> {len(text)} bytes; bundle id replaced {n_bundle}x")
+print(f"project: {before} -> {len(text)} bytes; bundle id replaced {n_bundle}x; deployment target raised {n_dep}x")
 for appex in ("MinisShare.appex", "MinisFileProvider.appex", "AgentWidgetExtension.appex"):
     still = len(re.findall(rf"{re.escape(appex)} in Embed Foundation Extensions \*/,", text))
     print(f"  {appex}: embed references left = {still}")
