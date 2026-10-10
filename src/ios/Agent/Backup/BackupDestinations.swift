@@ -117,7 +117,7 @@ enum BackupDestinations {
     /// exist so the AGENT can read and write a user's Obsidian vault, Scriptable
     /// scripts and so on — they are working directories, not places to drop
     /// backup archives. Listing them all as destinations put four unrelated
-    /// folders in front of the user and invited them to scatter `.minisbak`
+    /// folders in front of the user and invited them to scatter `.nablabak`
     /// files through directories they use for something else.
     ///
     /// So this section shows only what was added through "Add Destination…".
@@ -357,7 +357,7 @@ enum BackupDestinations {
 
     // MARK: - Reading packages back
 
-    /// A `.minisbak` found inside a mounted destination.
+    /// A `.nablabak` found inside a mounted destination.
     struct FoundPackage: Identifiable {
         var id: URL { url }
         let url: URL

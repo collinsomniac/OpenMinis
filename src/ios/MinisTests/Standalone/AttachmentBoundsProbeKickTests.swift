@@ -84,7 +84,7 @@ final class ProbeKicker {
 
     /// Mirrors `kickHeaderProbe`: skip when a size is already recorded, record
     /// the ATTEMPT (not the success) so an unresolvable source cannot re-probe
-    /// every pass, and only touch `minis://` local sources.
+    /// every pass, and only touch `nabla://` local sources.
     func kick(source: String) {
         guard store.size(source) == nil else { return }
         guard kicked.insert(source).inserted else { return }
@@ -109,7 +109,7 @@ func attachmentBounds(rawWidth: CGFloat, hasImage: Bool, source: String,
     return (.placeholder, placeholderHeight)
 }
 
-let src = "minis://attachments/repro_pixel6/compare_scroll1085.jpg"
+let src = "nabla://attachments/repro_pixel6/compare_scroll1085.jpg"
 
 print("▶️  1. the reported bug: a never-loaded source kicks a probe now")
 do {

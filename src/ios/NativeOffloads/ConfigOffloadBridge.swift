@@ -22,7 +22,7 @@ private let logger = AppLogger(category: "ConfigOffload")
         let sem = DispatchSemaphore(value: 0)
         var enabled = true
         Task.detached { @MainActor in
-            enabled = MinisConfigPermissionStore.shared.enabled
+            enabled = NablaConfigPermissionStore.shared.enabled
             sem.signal()
         }
         sem.wait()
@@ -37,7 +37,7 @@ private let logger = AppLogger(category: "ConfigOffload")
             "ok": false,
             "error": "permission_denied",
             "reason": "minis-config is disabled in Settings → Permissions.",
-            "user_message": "I tried to change a setting but minis-config is currently disabled. You can enable it at [Settings → Permissions](minis://settings/permissions), then ask me again. Or change the setting yourself directly through the relevant Settings screen.",
+            "user_message": "I tried to change a setting but minis-config is currently disabled. You can enable it at [Settings → Permissions](nabla://settings/permissions), then ask me again. Or change the setting yourself directly through the relevant Settings screen.",
         ]
     }
 
@@ -279,7 +279,7 @@ private let logger = AppLogger(category: "ConfigOffload")
     @MainActor
     private static func readFieldSync(path: String) -> NSDictionary {
         ConfigRegistry.shared.registerBuiltinsIfNeeded()
-        guard MinisConfigPermissionStore.shared.enabled else {
+        guard NablaConfigPermissionStore.shared.enabled else {
             return Self.disabledErrorEnvelope()
         }
         guard let field = ConfigRegistry.shared.resolveField(path: path) else {
@@ -345,7 +345,7 @@ private let logger = AppLogger(category: "ConfigOffload")
         var result: NSDictionary = [:]
         Task.detached { @MainActor in
             ConfigRegistry.shared.registerBuiltinsIfNeeded()
-            guard MinisConfigPermissionStore.shared.enabled else {
+            guard NablaConfigPermissionStore.shared.enabled else {
                 result = Self.disabledErrorEnvelope()
                 sem.signal()
                 return
@@ -378,7 +378,7 @@ private let logger = AppLogger(category: "ConfigOffload")
         var result: NSDictionary = [:]
         Task.detached { @MainActor in
             ConfigRegistry.shared.registerBuiltinsIfNeeded()
-            guard MinisConfigPermissionStore.shared.enabled else {
+            guard NablaConfigPermissionStore.shared.enabled else {
                 result = Self.disabledErrorEnvelope()
                 sem.signal()
                 return
@@ -905,8 +905,8 @@ private let logger = AppLogger(category: "ConfigOffload")
                 "ok": true,
                 "applied": applied,
                 "audit_ids": auditIds,
-                "audit_url": "minis://settings/logs?tab=config-audit",
-                "user_message": "Settings updated. Review or revert at [Logs → Config Changes](minis://settings/logs?tab=config-audit).",
+                "audit_url": "nabla://settings/logs?tab=config-audit",
+                "user_message": "Settings updated. Review or revert at [Logs → Config Changes](nabla://settings/logs?tab=config-audit).",
             ]
         }
     }
@@ -1004,7 +1004,7 @@ private let logger = AppLogger(category: "ConfigOffload")
         let sem = DispatchSemaphore(value: 0)
         var result: NSDictionary = [:]
         Task.detached { @MainActor in
-            guard MinisConfigPermissionStore.shared.enabled else {
+            guard NablaConfigPermissionStore.shared.enabled else {
                 result = Self.disabledErrorEnvelope()
                 sem.signal()
                 return
@@ -1028,7 +1028,7 @@ private let logger = AppLogger(category: "ConfigOffload")
         let sem = DispatchSemaphore(value: 0)
         var result: NSDictionary = [:]
         Task.detached { @MainActor in
-            guard MinisConfigPermissionStore.shared.enabled else {
+            guard NablaConfigPermissionStore.shared.enabled else {
                 result = Self.disabledErrorEnvelope()
                 sem.signal()
                 return
@@ -1086,7 +1086,7 @@ private let logger = AppLogger(category: "ConfigOffload")
         var result: NSDictionary = [:]
         Task.detached { @MainActor in
             ConfigRegistry.shared.registerBuiltinsIfNeeded()
-            guard MinisConfigPermissionStore.shared.enabled else {
+            guard NablaConfigPermissionStore.shared.enabled else {
                 result = Self.disabledErrorEnvelope()
                 sem.signal()
                 return

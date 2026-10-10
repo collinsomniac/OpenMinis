@@ -89,7 +89,7 @@ struct MinisApp: App {
     @StateObject private var shareCoordinator = ShareCoordinator.shared
     @ObservedObject private var fontSettings = FontSettings.shared
     @ObservedObject private var configConfirmGate = ConfigConfirmationGate.shared
-    /// [review S14] Drives the root-level restore sheet for a `.minisbak`
+    /// [review S14] Drives the root-level restore sheet for a `.nablabak`
     /// opened from outside the app.
     @ObservedObject private var openRouter = BackupOpenRouter.shared
     /// Observed so the restore sheet re-evaluates when the app locks/unlocks.
@@ -228,7 +228,7 @@ struct MinisApp: App {
                     guard !locked, let url = pendingURLWhileLocked else { return }
                     pendingURLWhileLocked = nil
                     if BackupOpenRouter.handle(url) {
-                        // .minisbak → restore flow, not the attachment pipeline.
+                        // .nablabak → restore flow, not the attachment pipeline.
                     } else if ExternalFileImporter.canIngest(url) {
                         ExternalFileImporter.ingest(url, into: shareCoordinator)
                         return
@@ -259,7 +259,7 @@ struct MinisApp: App {
                 )) { _ in
                     ConfigConfirmSheet(gate: configConfirmGate)
                 }
-                // [review S14] Restore flow for a `.minisbak` opened from
+                // [review S14] Restore flow for a `.nablabak` opened from
                 // Files / AirDrop / a share sheet. Mounted HERE rather than in
                 // BackupSettingsView, which was the only observer before: the
                 // user opening a backup is almost always mid device-migration
@@ -285,7 +285,7 @@ struct MinisApp: App {
                 )) { pending in
                     NavigationStack {
                         // Opens on the RESTORE tab with the package already
-                        // loaded. Someone who just tapped a .minisbak is mid
+                        // loaded. Someone who just tapped a .nablabak is mid
                         // device-migration — landing them on the backup form
                         // and making them find the switch would be exactly
                         // backwards.
@@ -312,7 +312,7 @@ struct MinisApp: App {
                         return
                     }
                     if BackupOpenRouter.handle(url) {
-                        // .minisbak → restore flow, not the attachment pipeline.
+                        // .nablabak → restore flow, not the attachment pipeline.
                     } else if ExternalFileImporter.canIngest(url) {
                         ExternalFileImporter.ingest(url, into: shareCoordinator)
                         return
@@ -321,7 +321,7 @@ struct MinisApp: App {
                 }
                 // Fullscreen immersive WebView for HTML web-app shortcuts.
                 // Driven by `.openWebAppDeepLink` (posted by DeepLinkRouter
-                // for `minis://open?session=…&path=…`). Mounted at the
+                // for `nabla://open?session=…&path=…`). Mounted at the
                 // WindowGroup root so it covers the chat list / draft / any
                 // other foreground state.
                 // [T-ios-remove-open-webapp-shortcut-intent] The
@@ -734,7 +734,7 @@ struct MinisApp: App {
     // MARK: - FileProvider
 
     private static let fileProviderDomain = NSFileProviderDomain(
-        identifier: NSFileProviderDomainIdentifier("com.openminis.app.files"),
+        identifier: NSFileProviderDomainIdentifier("io.github.collinsomniac.nabla.files"),
         displayName: "Minis"
     )
 
@@ -749,7 +749,7 @@ struct MinisApp: App {
     // MARK: FP launch-failure correlation trace
 
     /// [T-ios-fp-mac-bootcrash] Append one line to the FP extension's trace file
-    /// (`AppGroup/MinisConfig/fp-sync-trace.log`, same format as FPSyncTraceLog)
+    /// (`AppGroup/NablaConfig/fp-sync-trace.log`, same format as FPSyncTraceLog)
     /// when the installed bundle changes. The FP appex intermittently dies
     /// pre-main on Macs (SIGILL at DYLD-STUB$$NSExtensionMain, TestFlight
     /// D8_ZguC2Ikr7Wl0fRI7Ubn) — those launches can never log, so the working
@@ -775,8 +775,8 @@ struct MinisApp: App {
         guard previous != current else { return }
         UserDefaults.standard.set(current, forKey: key)
 
-        guard let container = fm.containerURL(forSecurityApplicationGroupIdentifier: "group.com.openminis.app") else { return }
-        let dir = container.appendingPathComponent("MinisConfig", isDirectory: true)
+        guard let container = fm.containerURL(forSecurityApplicationGroupIdentifier: "group.io.github.collinsomniac.nabla") else { return }
+        let dir = container.appendingPathComponent("NablaConfig", isDirectory: true)
         try? fm.createDirectory(at: dir, withIntermediateDirectories: true)
         let url = dir.appendingPathComponent("fp-sync-trace.log")
         let fmt = DateFormatter()
@@ -893,7 +893,7 @@ struct MinisApp: App {
                 // App Group `MinisFileProvider/` path that we hardcoded
                 // and that iOS does not own. So `.removeAll` SHOULD leave
                 // our data intact, but to be safe we snapshot to
-                // `MinisConfig/_reset_backup_v3/` first and restore if we
+                // `NablaConfig/_reset_backup_v3/` first and restore if we
                 // detect any of the three subdirs are missing afterwards.
                 lifecycleLog.info("[FileProvider] force-reset gen=\(fileProviderResetGeneration) snapshotting providerRoot before remove(.removeAll)")
                 let backupRoot = AIChatViewModel.minisConfigRoot.appendingPathComponent("_reset_backup_v3", isDirectory: true)
@@ -1162,7 +1162,12 @@ struct MinisApp: App {
     private static func migrateSharedDirToAppGroup() {
         let fm = FileManager.default
         let library = fm.urls(for: .libraryDirectory, in: .userDomainMask).first!
-        let container = fm.containerURL(forSecurityApplicationGroupIdentifier: "group.com.openminis.app")!
+        // Not force-unwrapped: if the app group is not provisioned (a free team may not grant it),
+        // the old `!` killed the app at launch. Skip the migration instead.
+        guard let container = fm.containerURL(forSecurityApplicationGroupIdentifier: "group.io.github.collinsomniac.nabla") else {
+            lifecycleLog.error("[AppGroup] container unavailable; skipping shared-dir migration")
+            return
+        }
 
         let migrations: [(source: URL, dest: URL, label: String)] = [
             // Legacy Library/MinisChat/shared → new shared
@@ -1203,7 +1208,7 @@ struct MinisApp: App {
     /// targets logged during MOUNT setup.
     private static func logFPSyncTracePaths() {
         let fm = FileManager.default
-        let groupID = "group.com.openminis.app"
+        let groupID = "group.io.github.collinsomniac.nabla"
         let containerURL = fm.containerURL(forSecurityApplicationGroupIdentifier: groupID)
         let containerPath = containerURL?.path ?? "<nil>"
         let resolvedContainer = containerURL?.resolvingSymlinksInPath().path ?? "<nil>"
@@ -1242,7 +1247,7 @@ struct MinisApp: App {
     // (`presentWebAppDeepLink`) is the remaining WebApp presentation path.
 
     /// Resolves a transient `WebAppShortcut` reconstructed from a
-    /// `minis://open?session=…&path=…` deep link (openminis.app launcher
+    /// `nabla://open?session=…&path=…` deep link (openminis.app launcher
     /// round-trip) and presents the immersive WebView. Does not touch
     /// ChatStore — the launcher URL is fully self-describing.
     @MainActor

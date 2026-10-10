@@ -3,7 +3,7 @@ import os.log
 
 /// Small, capped trace log written from the FileProvider extension into the
 /// App Group container so the main app and the user can read FP-side traces
-/// via `debug.readFile path:"AppGroup/MinisConfig/fp-sync-trace.log"`.
+/// via `debug.readFile path:"AppGroup/NablaConfig/fp-sync-trace.log"`.
 ///
 /// Why this exists: NSLog/AppLogger output from the extension does NOT reach
 /// the main app's LoggingManager (separate process, separate stderr pipe).
@@ -17,14 +17,14 @@ import os.log
 enum FPSyncTraceLog {
     private static let logFileName = "fp-sync-trace.log"
     private static let maxBytes: Int = 256 * 1024
-    private static let queue = DispatchQueue(label: "com.openminis.app.FileProvider.fpSyncTrace")
-    private static let osLog = OSLog(subsystem: "com.openminis.app.FileProvider", category: "FPSyncTrace")
+    private static let queue = DispatchQueue(label: "io.github.collinsomniac.nabla.FileProvider.fpSyncTrace")
+    private static let osLog = OSLog(subsystem: "io.github.collinsomniac.nabla.FileProvider", category: "FPSyncTrace")
 
     private static var fileURL: URL? {
         guard let container = FileManager.default.containerURL(
-            forSecurityApplicationGroupIdentifier: "group.com.openminis.app"
+            forSecurityApplicationGroupIdentifier: "group.io.github.collinsomniac.nabla"
         ) else { return nil }
-        let dir = container.appendingPathComponent("MinisConfig", isDirectory: true)
+        let dir = container.appendingPathComponent("NablaConfig", isDirectory: true)
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         return dir.appendingPathComponent(logFileName)
     }

@@ -230,7 +230,7 @@ struct ProviderInstance: Identifiable, Codable, Hashable {
 
     /// Keychain service name for storing this instance's API key.
     var keychainService: String {
-        "com.openminis.app.provider.\(id)"
+        "io.github.collinsomniac.nabla.provider.\(id)"
     }
 
     /// Whether this provider type's image-output models flow through OpenAIProvider

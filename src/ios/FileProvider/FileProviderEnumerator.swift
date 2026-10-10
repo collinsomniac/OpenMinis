@@ -5,7 +5,7 @@ import os.log
 final class FileProviderEnumerator: NSObject, NSFileProviderEnumerator {
     private let containerItemIdentifier: NSFileProviderItemIdentifier
     private let recursive: Bool
-    private static let log = OSLog(subsystem: "com.openminis.app.FileProvider", category: "Enumerator")
+    private static let log = OSLog(subsystem: "io.github.collinsomniac.nabla.FileProvider", category: "Enumerator")
 
     init(containerItemIdentifier: NSFileProviderItemIdentifier, recursive: Bool = false) {
         self.containerItemIdentifier = containerItemIdentifier
@@ -86,7 +86,7 @@ final class FileProviderEnumerator: NSObject, NSFileProviderEnumerator {
 
     /// Names of metadata files/dirs that historically lived under providerRoot
     /// and must never be exposed to iOS Files. Even after migration to
-    /// MinisConfig/, a stale copy might still be around after upgrading —
+    /// NablaConfig/, a stale copy might still be around after upgrading —
     /// this list protects against that.
     private static let metadataBlacklist: Set<String> = [
         "mounted-folders.json",

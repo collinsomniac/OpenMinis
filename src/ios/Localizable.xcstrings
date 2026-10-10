@@ -13360,228 +13360,228 @@
         }
       }
     },
-    "No .minisbak files in this folder." : {
+    "No .nablabak files in this folder." : {
       "extractionState" : "manual",
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Keine .minisbak-Dateien in diesem Ordner."
+            "value" : "Keine .nablabak-Dateien in diesem Ordner."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "No .minisbak files in this folder."
+            "value" : "No .nablabak files in this folder."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "No hay archivos .minisbak en esta carpeta."
+            "value" : "No hay archivos .nablabak en esta carpeta."
           }
         },
         "fil" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Walang .minisbak file sa folder na ito."
+            "value" : "Walang .nablabak file sa folder na ito."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Aucun fichier .minisbak dans ce dossier."
+            "value" : "Aucun fichier .nablabak dans ce dossier."
           }
         },
         "hr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "U ovoj mapi nema .minisbak datoteka."
+            "value" : "U ovoj mapi nema .nablabak datoteka."
           }
         },
         "id" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Tidak ada file .minisbak di folder ini."
+            "value" : "Tidak ada file .nablabak di folder ini."
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "このフォルダに .minisbak ファイルがありません。"
+            "value" : "このフォルダに .nablabak ファイルがありません。"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "이 폴더에 .minisbak 파일이 없습니다."
+            "value" : "이 폴더에 .nablabak 파일이 없습니다."
           }
         },
         "ms" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Tiada file .minisbak dalam folder ini."
+            "value" : "Tiada file .nablabak dalam folder ini."
           }
         },
         "pl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Brak plików .minisbak w tym folderze."
+            "value" : "Brak plików .nablabak w tym folderze."
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Nenhum arquivo .minisbak nesta pasta."
+            "value" : "Nenhum arquivo .nablabak nesta pasta."
           }
         },
         "ro" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Niciun fișier .minisbak în acest dosar."
+            "value" : "Niciun fișier .nablabak în acest dosar."
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "В этой папке нет файлов .minisbak."
+            "value" : "В этой папке нет файлов .nablabak."
           }
         },
         "th" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "ไม่มีไฟล์ .minisbak ในโฟลเดอร์นี้"
+            "value" : "ไม่มีไฟล์ .nablabak ในโฟลเดอร์นี้"
           }
         },
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Bu klasörde .minisbak dosyası yok."
+            "value" : "Bu klasörde .nablabak dosyası yok."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "此文件夹中没有 .minisbak 文件。"
+            "value" : "此文件夹中没有 .nablabak 文件。"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "此檔案夾中沒有 .minisbak 檔案。"
+            "value" : "此檔案夾中沒有 .nablabak 檔案。"
           }
         }
       }
     },
-    "No .minisbak files in this folder. If it's on a server, open it once in the Files app to reconnect, then try again." : {
+    "No .nablabak files in this folder. If it's on a server, open it once in the Files app to reconnect, then try again." : {
       "extractionState" : "manual",
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Keine .minisbak-Dateien in diesem Ordner. Wenn er auf einem Server liegt, öffne ihn einmal in der App „Dateien“, um ihn neu zu verbinden, und versuche es erneut."
+            "value" : "Keine .nablabak-Dateien in diesem Ordner. Wenn er auf einem Server liegt, öffne ihn einmal in der App „Dateien“, um ihn neu zu verbinden, und versuche es erneut."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "No .minisbak files in this folder. If it's on a server, open it once in the Files app to reconnect, then try again."
+            "value" : "No .nablabak files in this folder. If it's on a server, open it once in the Files app to reconnect, then try again."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "No hay archivos .minisbak en esta carpeta. Si está en un servidor, ábrelo una vez en la app Archivos para reconectar e inténtalo de nuevo."
+            "value" : "No hay archivos .nablabak en esta carpeta. Si está en un servidor, ábrelo una vez en la app Archivos para reconectar e inténtalo de nuevo."
           }
         },
         "fil" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Walang .minisbak file sa folder na ito. Kung nasa server ito, buksan minsan sa Files app para kumonekta ulit, tapos subukan ulit."
+            "value" : "Walang .nablabak file sa folder na ito. Kung nasa server ito, buksan minsan sa Files app para kumonekta ulit, tapos subukan ulit."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Aucun fichier .minisbak dans ce dossier. S'il se trouve sur un serveur, ouvrez-le une fois dans l'app Fichiers pour le reconnecter, puis réessayez."
+            "value" : "Aucun fichier .nablabak dans ce dossier. S'il se trouve sur un serveur, ouvrez-le une fois dans l'app Fichiers pour le reconnecter, puis réessayez."
           }
         },
         "hr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "U ovoj mapi nema .minisbak datoteka. Ako se nalazi na poslužitelju, otvorite je jednom u aplikaciji Files kako biste se ponovno povezali, zatim pokušajte ponovno."
+            "value" : "U ovoj mapi nema .nablabak datoteka. Ako se nalazi na poslužitelju, otvorite je jednom u aplikaciji Files kako biste se ponovno povezali, zatim pokušajte ponovno."
           }
         },
         "id" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Tidak ada file .minisbak di folder ini. Jika berada di server, buka sekali di aplikasi Files untuk menghubungkan ulang, lalu coba lagi."
+            "value" : "Tidak ada file .nablabak di folder ini. Jika berada di server, buka sekali di aplikasi Files untuk menghubungkan ulang, lalu coba lagi."
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "このフォルダに .minisbak ファイルがありません。サーバ上にある場合は、「ファイル」App で一度開いて再接続してからもう一度お試しください。"
+            "value" : "このフォルダに .nablabak ファイルがありません。サーバ上にある場合は、「ファイル」App で一度開いて再接続してからもう一度お試しください。"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "이 폴더에 .minisbak 파일이 없습니다. 서버에 있다면 파일 앱에서 한 번 열어 다시 연결한 후 시도하세요."
+            "value" : "이 폴더에 .nablabak 파일이 없습니다. 서버에 있다면 파일 앱에서 한 번 열어 다시 연결한 후 시도하세요."
           }
         },
         "ms" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Tiada file .minisbak dalam folder ini. Jika ia di server, buka sekali dalam apl Files untuk menyambung semula, kemudian cuba lagi."
+            "value" : "Tiada file .nablabak dalam folder ini. Jika ia di server, buka sekali dalam apl Files untuk menyambung semula, kemudian cuba lagi."
           }
         },
         "pl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Brak plików .minisbak w tym folderze. Jeśli jest na serwerze, otwórz go raz w aplikacji Pliki, aby połączyć ponownie, a potem spróbuj jeszcze raz."
+            "value" : "Brak plików .nablabak w tym folderze. Jeśli jest na serwerze, otwórz go raz w aplikacji Pliki, aby połączyć ponownie, a potem spróbuj jeszcze raz."
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Nenhum arquivo .minisbak nesta pasta. Se estiver em um servidor, abra-o uma vez no app Arquivos para reconectar e tente de novo."
+            "value" : "Nenhum arquivo .nablabak nesta pasta. Se estiver em um servidor, abra-o uma vez no app Arquivos para reconectar e tente de novo."
           }
         },
         "ro" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Niciun fișier .minisbak în acest dosar. Dacă e pe un server, deschide-l o dată în aplicația Fișiere pentru reconectare, apoi încearcă din nou."
+            "value" : "Niciun fișier .nablabak în acest dosar. Dacă e pe un server, deschide-l o dată în aplicația Fișiere pentru reconectare, apoi încearcă din nou."
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "В этой папке нет файлов .minisbak. Если она на сервере, откройте её один раз в приложении «Файлы» для переподключения и повторите."
+            "value" : "В этой папке нет файлов .nablabak. Если она на сервере, откройте её один раз в приложении «Файлы» для переподключения и повторите."
           }
         },
         "th" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "ไม่มีไฟล์ .minisbak ในโฟลเดอร์นี้ หากอยู่บนเซิร์ฟเวอร์ ให้เปิดในแอป Files สักครั้งเพื่อเชื่อมต่อใหม่ แล้วลองอีกครั้ง"
+            "value" : "ไม่มีไฟล์ .nablabak ในโฟลเดอร์นี้ หากอยู่บนเซิร์ฟเวอร์ ให้เปิดในแอป Files สักครั้งเพื่อเชื่อมต่อใหม่ แล้วลองอีกครั้ง"
           }
         },
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Bu klasörde .minisbak dosyası yok. Sunucudaysa yeniden bağlanmak için Dosyalar uygulamasında bir kez açın, sonra yeniden deneyin."
+            "value" : "Bu klasörde .nablabak dosyası yok. Sunucudaysa yeniden bağlanmak için Dosyalar uygulamasında bir kez açın, sonra yeniden deneyin."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "此文件夹中没有 .minisbak 文件。如果它位于服务器上，请先在「文件」App 中打开一次以重新连接，然后再试。"
+            "value" : "此文件夹中没有 .nablabak 文件。如果它位于服务器上，请先在「文件」App 中打开一次以重新连接，然后再试。"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "此檔案夾中沒有 .minisbak 檔案。如果它位於伺服器上，請先在「檔案」App 中打開一次以重新連接，然後再試。"
+            "value" : "此檔案夾中沒有 .nablabak 檔案。如果它位於伺服器上，請先在「檔案」App 中打開一次以重新連接，然後再試。"
           }
         }
       }
@@ -14608,115 +14608,115 @@
         }
       }
     },
-    "Open folders to browse. Only .minisbak files are shown." : {
+    "Open folders to browse. Only .nablabak files are shown." : {
       "extractionState" : "manual",
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Öffne Ordner zum Durchsuchen. Es werden nur .minisbak-Dateien angezeigt."
+            "value" : "Öffne Ordner zum Durchsuchen. Es werden nur .nablabak-Dateien angezeigt."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Open folders to browse. Only .minisbak files are shown."
+            "value" : "Open folders to browse. Only .nablabak files are shown."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Abre las carpetas para explorar. Solo se muestran archivos .minisbak."
+            "value" : "Abre las carpetas para explorar. Solo se muestran archivos .nablabak."
           }
         },
         "fil" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Buksan ang mga folder para mag-browse. Mga .minisbak file lang ang ipinapakita."
+            "value" : "Buksan ang mga folder para mag-browse. Mga .nablabak file lang ang ipinapakita."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Ouvrez les dossiers pour parcourir. Seuls les fichiers .minisbak sont affichés."
+            "value" : "Ouvrez les dossiers pour parcourir. Seuls les fichiers .nablabak sont affichés."
           }
         },
         "hr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Otvarajte mape za pregled. Prikazuju se samo .minisbak datoteke."
+            "value" : "Otvarajte mape za pregled. Prikazuju se samo .nablabak datoteke."
           }
         },
         "id" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Buka folder untuk menelusuri. Hanya file .minisbak yang ditampilkan."
+            "value" : "Buka folder untuk menelusuri. Hanya file .nablabak yang ditampilkan."
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "フォルダを開いて階層をたどります。.minisbak ファイルのみ表示されます。"
+            "value" : "フォルダを開いて階層をたどります。.nablabak ファイルのみ表示されます。"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "폴더를 열어 탐색하세요. .minisbak 파일만 표시됩니다."
+            "value" : "폴더를 열어 탐색하세요. .nablabak 파일만 표시됩니다."
           }
         },
         "ms" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Buka folder untuk melayari. Hanya file .minisbak ditunjukkan."
+            "value" : "Buka folder untuk melayari. Hanya file .nablabak ditunjukkan."
           }
         },
         "pl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Otwórz foldery, aby przeglądać. Pokazywane są tylko pliki .minisbak."
+            "value" : "Otwórz foldery, aby przeglądać. Pokazywane są tylko pliki .nablabak."
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Abra as pastas para navegar. Só aparecem arquivos .minisbak."
+            "value" : "Abra as pastas para navegar. Só aparecem arquivos .nablabak."
           }
         },
         "ro" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Deschide dosare pentru a răsfoi. Se afișează doar fișierele .minisbak."
+            "value" : "Deschide dosare pentru a răsfoi. Se afișează doar fișierele .nablabak."
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Открывайте папки для просмотра. Показаны только файлы .minisbak."
+            "value" : "Открывайте папки для просмотра. Показаны только файлы .nablabak."
           }
         },
         "th" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "เปิดโฟลเดอร์เพื่อเรียกดู แสดงเฉพาะไฟล์ .minisbak เท่านั้น"
+            "value" : "เปิดโฟลเดอร์เพื่อเรียกดู แสดงเฉพาะไฟล์ .nablabak เท่านั้น"
           }
         },
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Göz atmak için klasörleri açın. Yalnızca .minisbak dosyaları gösterilir."
+            "value" : "Göz atmak için klasörleri açın. Yalnızca .nablabak dosyaları gösterilir."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "点按文件夹逐级浏览，仅显示 .minisbak 文件。"
+            "value" : "点按文件夹逐级浏览，仅显示 .nablabak 文件。"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "點一下檔案夾逐層瀏覽，僅顯示 .minisbak 檔案。"
+            "value" : "點一下檔案夾逐層瀏覽，僅顯示 .nablabak 檔案。"
           }
         }
       }
@@ -15004,115 +15004,115 @@
         }
       }
     },
-    "Pick a .minisbak file from Files, iCloud Drive, or any connected storage — or add a server your backups were saved to." : {
+    "Pick a .nablabak file from Files, iCloud Drive, or any connected storage — or add a server your backups were saved to." : {
       "extractionState" : "manual",
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Wähle eine .minisbak-Datei aus „Dateien“, iCloud Drive oder einem verbundenen Speicher — oder füge den Server hinzu, auf dem deine Sicherungen gespeichert wurden."
+            "value" : "Wähle eine .nablabak-Datei aus „Dateien“, iCloud Drive oder einem verbundenen Speicher — oder füge den Server hinzu, auf dem deine Sicherungen gespeichert wurden."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Pick a .minisbak file from Files, iCloud Drive, or any connected storage — or add a server your backups were saved to."
+            "value" : "Pick a .nablabak file from Files, iCloud Drive, or any connected storage — or add a server your backups were saved to."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Elige un archivo .minisbak en Archivos, iCloud Drive o cualquier almacenamiento conectado, o añade el servidor donde se guardaron tus copias."
+            "value" : "Elige un archivo .nablabak en Archivos, iCloud Drive o cualquier almacenamiento conectado, o añade el servidor donde se guardaron tus copias."
           }
         },
         "fil" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Pumili ng .minisbak file mula sa Files, iCloud Drive, o anumang nakakonektang storage — o magdagdag ng server kung saan na-save ang mga backup mo."
+            "value" : "Pumili ng .nablabak file mula sa Files, iCloud Drive, o anumang nakakonektang storage — o magdagdag ng server kung saan na-save ang mga backup mo."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Choisissez un fichier .minisbak dans Fichiers, iCloud Drive ou tout stockage connecté — ou ajoutez le serveur sur lequel vos sauvegardes ont été enregistrées."
+            "value" : "Choisissez un fichier .nablabak dans Fichiers, iCloud Drive ou tout stockage connecté — ou ajoutez le serveur sur lequel vos sauvegardes ont été enregistrées."
           }
         },
         "hr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Odaberite .minisbak datoteku iz Files, iCloud Drivea ili bilo koje povezane pohrane — ili dodajte poslužitelj na koji su spremljene vaše sigurnosne kopije."
+            "value" : "Odaberite .nablabak datoteku iz Files, iCloud Drivea ili bilo koje povezane pohrane — ili dodajte poslužitelj na koji su spremljene vaše sigurnosne kopije."
           }
         },
         "id" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Pilih file .minisbak dari Files, iCloud Drive, atau penyimpanan mana pun yang terhubung — atau tambahkan server tempat cadangan Anda disimpan."
+            "value" : "Pilih file .nablabak dari Files, iCloud Drive, atau penyimpanan mana pun yang terhubung — atau tambahkan server tempat cadangan Anda disimpan."
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "「ファイル」、iCloud Drive、または接続済みのストレージから .minisbak ファイルを選ぶか、バックアップの保存先サーバを追加します。"
+            "value" : "「ファイル」、iCloud Drive、または接続済みのストレージから .nablabak ファイルを選ぶか、バックアップの保存先サーバを追加します。"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "파일, iCloud Drive 또는 연결된 저장 공간에서 .minisbak 파일을 선택하거나, 백업이 저장된 서버를 추가하세요."
+            "value" : "파일, iCloud Drive 또는 연결된 저장 공간에서 .nablabak 파일을 선택하거나, 백업이 저장된 서버를 추가하세요."
           }
         },
         "ms" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Pilih file .minisbak dari Files, iCloud Drive, atau mana-mana storan yang disambung — atau tambah server tempat sandaran anda disimpan."
+            "value" : "Pilih file .nablabak dari Files, iCloud Drive, atau mana-mana storan yang disambung — atau tambah server tempat sandaran anda disimpan."
           }
         },
         "pl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Wybierz plik .minisbak z Plików, iCloud Drive lub podłączonego magazynu — albo dodaj serwer, na którym zapisano Twoje kopie."
+            "value" : "Wybierz plik .nablabak z Plików, iCloud Drive lub podłączonego magazynu — albo dodaj serwer, na którym zapisano Twoje kopie."
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Escolha um arquivo .minisbak em Arquivos, no iCloud Drive ou em qualquer armazenamento conectado — ou adicione o servidor onde seus backups foram salvos."
+            "value" : "Escolha um arquivo .nablabak em Arquivos, no iCloud Drive ou em qualquer armazenamento conectado — ou adicione o servidor onde seus backups foram salvos."
           }
         },
         "ro" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Alege un fișier .minisbak din Fișiere, iCloud Drive sau orice spațiu conectat — sau adaugă serverul pe care au fost salvate copiile."
+            "value" : "Alege un fișier .nablabak din Fișiere, iCloud Drive sau orice spațiu conectat — sau adaugă serverul pe care au fost salvate copiile."
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Выберите файл .minisbak в «Файлах», iCloud Drive или любом подключённом хранилище — либо добавьте сервер, на который сохранялись копии."
+            "value" : "Выберите файл .nablabak в «Файлах», iCloud Drive или любом подключённом хранилище — либо добавьте сервер, на который сохранялись копии."
           }
         },
         "th" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "เลือกไฟล์ .minisbak จาก Files, iCloud Drive หรือพื้นที่จัดเก็บที่เชื่อมต่ออยู่ — หรือเพิ่มเซิร์ฟเวอร์ที่บันทึกข้อมูลสำรองของคุณไว้"
+            "value" : "เลือกไฟล์ .nablabak จาก Files, iCloud Drive หรือพื้นที่จัดเก็บที่เชื่อมต่ออยู่ — หรือเพิ่มเซิร์ฟเวอร์ที่บันทึกข้อมูลสำรองของคุณไว้"
           }
         },
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Dosyalar'dan, iCloud Drive'dan veya bağlı bir depolamadan .minisbak dosyası seçin — ya da yedeklerinizin kaydedildiği sunucuyu ekleyin."
+            "value" : "Dosyalar'dan, iCloud Drive'dan veya bağlı bir depolamadan .nablabak dosyası seçin — ya da yedeklerinizin kaydedildiği sunucuyu ekleyin."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "从「文件」、iCloud 云盘或任何已连接的存储中选择 .minisbak 文件，也可以添加保存备份的服务器。"
+            "value" : "从「文件」、iCloud 云盘或任何已连接的存储中选择 .nablabak 文件，也可以添加保存备份的服务器。"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "從「檔案」、iCloud 雲碟或任何已連接的儲存空間中選擇 .minisbak 檔案，也可以加入儲存備份的伺服器。"
+            "value" : "從「檔案」、iCloud 雲碟或任何已連接的儲存空間中選擇 .nablabak 檔案，也可以加入儲存備份的伺服器。"
           }
         }
       }
@@ -18073,228 +18073,228 @@
         }
       }
     },
-    "Showing .minisbak files in this folder." : {
+    "Showing .nablabak files in this folder." : {
       "extractionState" : "manual",
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Es werden die .minisbak-Dateien dieses Ordners angezeigt."
+            "value" : "Es werden die .nablabak-Dateien dieses Ordners angezeigt."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Showing .minisbak files in this folder."
+            "value" : "Showing .nablabak files in this folder."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Mostrando los archivos .minisbak de esta carpeta."
+            "value" : "Mostrando los archivos .nablabak de esta carpeta."
           }
         },
         "fil" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Ipinapakita ang mga .minisbak file sa folder na ito."
+            "value" : "Ipinapakita ang mga .nablabak file sa folder na ito."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Affichage des fichiers .minisbak de ce dossier."
+            "value" : "Affichage des fichiers .nablabak de ce dossier."
           }
         },
         "hr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Prikazuju se .minisbak datoteke u ovoj mapi."
+            "value" : "Prikazuju se .nablabak datoteke u ovoj mapi."
           }
         },
         "id" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Menampilkan file .minisbak di folder ini."
+            "value" : "Menampilkan file .nablabak di folder ini."
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "このフォルダにある .minisbak ファイルを表示しています。"
+            "value" : "このフォルダにある .nablabak ファイルを表示しています。"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "이 폴더에 있는 .minisbak 파일을 표시합니다."
+            "value" : "이 폴더에 있는 .nablabak 파일을 표시합니다."
           }
         },
         "ms" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Menunjukkan file .minisbak dalam folder ini."
+            "value" : "Menunjukkan file .nablabak dalam folder ini."
           }
         },
         "pl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Pokazywane są pliki .minisbak w tym folderze."
+            "value" : "Pokazywane są pliki .nablabak w tym folderze."
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Mostrando os arquivos .minisbak desta pasta."
+            "value" : "Mostrando os arquivos .nablabak desta pasta."
           }
         },
         "ro" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Se afișează fișierele .minisbak din acest dosar."
+            "value" : "Se afișează fișierele .nablabak din acest dosar."
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Показаны файлы .minisbak из этой папки."
+            "value" : "Показаны файлы .nablabak из этой папки."
           }
         },
         "th" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "แสดงไฟล์ .minisbak ในโฟลเดอร์นี้"
+            "value" : "แสดงไฟล์ .nablabak ในโฟลเดอร์นี้"
           }
         },
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Bu klasördeki .minisbak dosyaları gösteriliyor."
+            "value" : "Bu klasördeki .nablabak dosyaları gösteriliyor."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "显示此文件夹中的 .minisbak 文件。"
+            "value" : "显示此文件夹中的 .nablabak 文件。"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "顯示此檔案夾中的 .minisbak 檔案。"
+            "value" : "顯示此檔案夾中的 .nablabak 檔案。"
           }
         }
       }
     },
-    "Showing .minisbak files in this folder on the server." : {
+    "Showing .nablabak files in this folder on the server." : {
       "extractionState" : "manual",
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Es werden die .minisbak-Dateien dieses Ordners auf dem Server angezeigt."
+            "value" : "Es werden die .nablabak-Dateien dieses Ordners auf dem Server angezeigt."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Showing .minisbak files in this folder on the server."
+            "value" : "Showing .nablabak files in this folder on the server."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Mostrando los archivos .minisbak de esta carpeta en el servidor."
+            "value" : "Mostrando los archivos .nablabak de esta carpeta en el servidor."
           }
         },
         "fil" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Ipinapakita ang mga .minisbak file sa folder na ito sa server."
+            "value" : "Ipinapakita ang mga .nablabak file sa folder na ito sa server."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Affichage des fichiers .minisbak de ce dossier sur le serveur."
+            "value" : "Affichage des fichiers .nablabak de ce dossier sur le serveur."
           }
         },
         "hr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Prikazuju se .minisbak datoteke u ovoj mapi na poslužitelju."
+            "value" : "Prikazuju se .nablabak datoteke u ovoj mapi na poslužitelju."
           }
         },
         "id" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Menampilkan file .minisbak di folder ini pada server."
+            "value" : "Menampilkan file .nablabak di folder ini pada server."
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "サーバ上のこのフォルダにある .minisbak ファイルを表示しています。"
+            "value" : "サーバ上のこのフォルダにある .nablabak ファイルを表示しています。"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "서버의 이 폴더에 있는 .minisbak 파일을 표시합니다."
+            "value" : "서버의 이 폴더에 있는 .nablabak 파일을 표시합니다."
           }
         },
         "ms" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Menunjukkan file .minisbak dalam folder ini pada server."
+            "value" : "Menunjukkan file .nablabak dalam folder ini pada server."
           }
         },
         "pl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Pokazywane są pliki .minisbak w tym folderze na serwerze."
+            "value" : "Pokazywane są pliki .nablabak w tym folderze na serwerze."
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Mostrando os arquivos .minisbak desta pasta no servidor."
+            "value" : "Mostrando os arquivos .nablabak desta pasta no servidor."
           }
         },
         "ro" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Se afișează fișierele .minisbak din acest dosar de pe server."
+            "value" : "Se afișează fișierele .nablabak din acest dosar de pe server."
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Показаны файлы .minisbak из этой папки на сервере."
+            "value" : "Показаны файлы .nablabak из этой папки на сервере."
           }
         },
         "th" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "แสดงไฟล์ .minisbak ในโฟลเดอร์นี้บนเซิร์ฟเวอร์"
+            "value" : "แสดงไฟล์ .nablabak ในโฟลเดอร์นี้บนเซิร์ฟเวอร์"
           }
         },
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Sunucudaki bu klasörde bulunan .minisbak dosyaları gösteriliyor."
+            "value" : "Sunucudaki bu klasörde bulunan .nablabak dosyaları gösteriliyor."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "显示服务器上此文件夹中的 .minisbak 文件。"
+            "value" : "显示服务器上此文件夹中的 .nablabak 文件。"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "顯示伺服器上此檔案夾中的 .minisbak 檔案。"
+            "value" : "顯示伺服器上此檔案夾中的 .nablabak 檔案。"
           }
         }
       }
@@ -147239,115 +147239,115 @@
         }
       }
     },
-    "No .minisbak files in your selected folders. If they're on a server, open it once in the Files app to reconnect, then try again." : {
+    "No .nablabak files in your selected folders. If they're on a server, open it once in the Files app to reconnect, then try again." : {
       "extractionState" : "manual",
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Keine .minisbak-Dateien in deinen ausgewählten Ordnern. Wenn sie auf einem Server liegen, öffne ihn einmal in der App „Dateien“, um ihn neu zu verbinden, und versuche es erneut."
+            "value" : "Keine .nablabak-Dateien in deinen ausgewählten Ordnern. Wenn sie auf einem Server liegen, öffne ihn einmal in der App „Dateien“, um ihn neu zu verbinden, und versuche es erneut."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "No .minisbak files in your selected folders. If they're on a server, open it once in the Files app to reconnect, then try again."
+            "value" : "No .nablabak files in your selected folders. If they're on a server, open it once in the Files app to reconnect, then try again."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "No hay archivos .minisbak en las carpetas seleccionadas. Si están en un servidor, ábrelo una vez en la app Archivos para volver a conectarte y vuelve a intentarlo."
+            "value" : "No hay archivos .nablabak en las carpetas seleccionadas. Si están en un servidor, ábrelo una vez en la app Archivos para volver a conectarte y vuelve a intentarlo."
           }
         },
         "fil" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Walang .minisbak file sa mga napili mong folder. Kung nasa server ito, buksan minsan sa Files app para kumonekta ulit, tapos subukan ulit."
+            "value" : "Walang .nablabak file sa mga napili mong folder. Kung nasa server ito, buksan minsan sa Files app para kumonekta ulit, tapos subukan ulit."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Aucun fichier .minisbak dans les dossiers sélectionnés. S'ils se trouvent sur un serveur, ouvrez-le une fois dans l'app Fichiers pour le reconnecter, puis réessayez."
+            "value" : "Aucun fichier .nablabak dans les dossiers sélectionnés. S'ils se trouvent sur un serveur, ouvrez-le une fois dans l'app Fichiers pour le reconnecter, puis réessayez."
           }
         },
         "hr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Nema .minisbak datoteka u odabranim mapama. Ako se nalaze na poslužitelju, otvorite ga jednom u aplikaciji Datoteke da se ponovno povežete, pa pokušajte ponovno."
+            "value" : "Nema .nablabak datoteka u odabranim mapama. Ako se nalaze na poslužitelju, otvorite ga jednom u aplikaciji Datoteke da se ponovno povežete, pa pokušajte ponovno."
           }
         },
         "id" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Tidak ada file .minisbak di folder yang Anda pilih. Jika berada di server, buka sekali di aplikasi Files untuk menghubungkan ulang, lalu coba lagi."
+            "value" : "Tidak ada file .nablabak di folder yang Anda pilih. Jika berada di server, buka sekali di aplikasi Files untuk menghubungkan ulang, lalu coba lagi."
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "選択したフォルダに .minisbak ファイルがありません。サーバ上にある場合は、「ファイル」アプリで一度開いて再接続してから再試行してください。"
+            "value" : "選択したフォルダに .nablabak ファイルがありません。サーバ上にある場合は、「ファイル」アプリで一度開いて再接続してから再試行してください。"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "선택한 폴더에 .minisbak 파일이 없습니다. 서버에 있다면 파일 앱에서 한 번 열어 다시 연결한 후 시도하십시오."
+            "value" : "선택한 폴더에 .nablabak 파일이 없습니다. 서버에 있다면 파일 앱에서 한 번 열어 다시 연결한 후 시도하십시오."
           }
         },
         "ms" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Tiada file .minisbak dalam folder yang anda pilih. Jika ia di server, buka sekali dalam apl Files untuk menyambung semula, kemudian cuba lagi."
+            "value" : "Tiada file .nablabak dalam folder yang anda pilih. Jika ia di server, buka sekali dalam apl Files untuk menyambung semula, kemudian cuba lagi."
           }
         },
         "pl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Brak plików .minisbak w wybranych folderach. Jeśli są na serwerze, otwórz go raz w aplikacji Pliki, aby połączyć ponownie, a potem spróbuj jeszcze raz."
+            "value" : "Brak plików .nablabak w wybranych folderach. Jeśli są na serwerze, otwórz go raz w aplikacji Pliki, aby połączyć ponownie, a potem spróbuj jeszcze raz."
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Nenhum arquivo .minisbak nas pastas selecionadas. Se estiverem em um servidor, abra-o uma vez no app Arquivos para reconectar e tente de novo."
+            "value" : "Nenhum arquivo .nablabak nas pastas selecionadas. Se estiverem em um servidor, abra-o uma vez no app Arquivos para reconectar e tente de novo."
           }
         },
         "ro" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Niciun fișier .minisbak în dosarele selectate. Dacă sunt pe un server, deschide-l o dată în aplicația Fișiere pentru reconectare, apoi încearcă din nou."
+            "value" : "Niciun fișier .nablabak în dosarele selectate. Dacă sunt pe un server, deschide-l o dată în aplicația Fișiere pentru reconectare, apoi încearcă din nou."
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "В выбранных папках нет файлов .minisbak. Если они на сервере, откройте его один раз в приложении «Файлы» для переподключения и повторите."
+            "value" : "В выбранных папках нет файлов .nablabak. Если они на сервере, откройте его один раз в приложении «Файлы» для переподключения и повторите."
           }
         },
         "th" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "ไม่มีไฟล์ .minisbak ในโฟลเดอร์ที่คุณเลือก หากอยู่บนเซิร์ฟเวอร์ ให้เปิดในแอป Files สักครั้งเพื่อเชื่อมต่อใหม่ แล้วลองอีกครั้ง"
+            "value" : "ไม่มีไฟล์ .nablabak ในโฟลเดอร์ที่คุณเลือก หากอยู่บนเซิร์ฟเวอร์ ให้เปิดในแอป Files สักครั้งเพื่อเชื่อมต่อใหม่ แล้วลองอีกครั้ง"
           }
         },
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Seçtiğiniz klasörlerde .minisbak dosyası yok. Sunucudaysa yeniden bağlanmak için Dosyalar uygulamasında bir kez açın, sonra yeniden deneyin."
+            "value" : "Seçtiğiniz klasörlerde .nablabak dosyası yok. Sunucudaysa yeniden bağlanmak için Dosyalar uygulamasında bir kez açın, sonra yeniden deneyin."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "所选文件夹中没有 .minisbak 文件。如果它们在服务器上，请先在“文件”App 中打开以重新连接，然后重试。"
+            "value" : "所选文件夹中没有 .nablabak 文件。如果它们在服务器上，请先在“文件”App 中打开以重新连接，然后重试。"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "所選資料夾中沒有 .minisbak 檔案。若檔案在伺服器上，請先在「檔案」App 中開啟一次以重新連線，然後再試一次。"
+            "value" : "所選資料夾中沒有 .nablabak 檔案。若檔案在伺服器上，請先在「檔案」App 中開啟一次以重新連線，然後再試一次。"
           }
         }
       }
@@ -165840,108 +165840,108 @@
         }
       }
     },
-    "Pick a .minisbak file from Files, iCloud Drive, or any connected storage." : {
+    "Pick a .nablabak file from Files, iCloud Drive, or any connected storage." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Wähle eine .minisbak-Datei aus „Dateien“, iCloud Drive oder einem verbundenen Speicher."
+            "value" : "Wähle eine .nablabak-Datei aus „Dateien“, iCloud Drive oder einem verbundenen Speicher."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Elige un archivo .minisbak desde Archivos, iCloud Drive o cualquier almacenamiento conectado."
+            "value" : "Elige un archivo .nablabak desde Archivos, iCloud Drive o cualquier almacenamiento conectado."
           }
         },
         "fil" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Pumili ng .minisbak file mula sa Files, iCloud Drive, o anumang nakakonektang storage."
+            "value" : "Pumili ng .nablabak file mula sa Files, iCloud Drive, o anumang nakakonektang storage."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Choisissez un fichier .minisbak dans Fichiers, iCloud Drive ou tout stockage connecté."
+            "value" : "Choisissez un fichier .nablabak dans Fichiers, iCloud Drive ou tout stockage connecté."
           }
         },
         "hr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Odaberite .minisbak datoteku iz aplikacije Datoteke, iCloud Drivea ili bilo koje povezane pohrane."
+            "value" : "Odaberite .nablabak datoteku iz aplikacije Datoteke, iCloud Drivea ili bilo koje povezane pohrane."
           }
         },
         "id" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Pilih file .minisbak dari Files, iCloud Drive, atau penyimpanan mana pun yang terhubung."
+            "value" : "Pilih file .nablabak dari Files, iCloud Drive, atau penyimpanan mana pun yang terhubung."
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "「ファイル」、iCloud Drive、または接続済みのストレージから .minisbak ファイルを選択します。"
+            "value" : "「ファイル」、iCloud Drive、または接続済みのストレージから .nablabak ファイルを選択します。"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "파일 앱, iCloud Drive 또는 연결된 스토리지에서 .minisbak 파일을 선택하십시오."
+            "value" : "파일 앱, iCloud Drive 또는 연결된 스토리지에서 .nablabak 파일을 선택하십시오."
           }
         },
         "ms" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Pilih file .minisbak dari Files, iCloud Drive, atau mana-mana storan yang disambung."
+            "value" : "Pilih file .nablabak dari Files, iCloud Drive, atau mana-mana storan yang disambung."
           }
         },
         "pl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Wybierz plik .minisbak z Plików, iCloud Drive lub dowolnego podłączonego magazynu."
+            "value" : "Wybierz plik .nablabak z Plików, iCloud Drive lub dowolnego podłączonego magazynu."
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Escolha um arquivo .minisbak em Arquivos, no iCloud Drive ou em qualquer armazenamento conectado."
+            "value" : "Escolha um arquivo .nablabak em Arquivos, no iCloud Drive ou em qualquer armazenamento conectado."
           }
         },
         "ro" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Alege un fișier .minisbak din Fișiere, iCloud Drive sau orice stocare conectată."
+            "value" : "Alege un fișier .nablabak din Fișiere, iCloud Drive sau orice stocare conectată."
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Выберите файл .minisbak в «Файлах», iCloud Drive или любом подключённом хранилище."
+            "value" : "Выберите файл .nablabak в «Файлах», iCloud Drive или любом подключённом хранилище."
           }
         },
         "th" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "เลือกไฟล์ .minisbak จาก Files, iCloud Drive หรือพื้นที่จัดเก็บที่เชื่อมต่ออยู่"
+            "value" : "เลือกไฟล์ .nablabak จาก Files, iCloud Drive หรือพื้นที่จัดเก็บที่เชื่อมต่ออยู่"
           }
         },
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Dosyalar'dan, iCloud Drive'dan veya bağlı herhangi bir depolamadan bir .minisbak dosyası seçin."
+            "value" : "Dosyalar'dan, iCloud Drive'dan veya bağlı herhangi bir depolamadan bir .nablabak dosyası seçin."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "从“文件”、iCloud 云盘或任何已连接的存储中选择 .minisbak 文件。"
+            "value" : "从“文件”、iCloud 云盘或任何已连接的存储中选择 .nablabak 文件。"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "從「檔案」、iCloud Drive 或任何已連線的儲存空間選擇 .minisbak 檔案。"
+            "value" : "從「檔案」、iCloud Drive 或任何已連線的儲存空間選擇 .nablabak 檔案。"
           }
         }
       }

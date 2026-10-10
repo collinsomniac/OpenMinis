@@ -206,7 +206,7 @@ extension AIChatViewModel {
         // user is NOT looking at (debug RPC, sync-triggered reloads, share
         // flows). The global means "session whose chat UI is frontmost" and is
         // written only by AIChatView (onAppear + sessionId onChange) — a
-        // background write here made every relative minis:// resolution (tap
+        // background write here made every relative nabla:// resolution (tap
         // preview, bubble thumbnails, edit-box images) land in the wrong
         // session's directory ("无法找到" / broken previews).
         // [T-ios-session-unread-badge] Opening the session reads its new message,
@@ -1144,7 +1144,7 @@ extension AIChatViewModel {
         // [T-minisurl-wrong-active-session] No Self.activeSessionId write:
         // drafts are also created by non-UI flows (chat.prompt RPC, share
         // extension, App Intents), and stealing the frontmost pointer from
-        // here broke minis:// resolution for the session the user was
+        // here broke nabla:// resolution for the session the user was
         // actually viewing. The on-screen draft case is covered by
         // AIChatView's `.onChange(of: vm.sessionId)`.
         // [T-memory-enabled-new-session-bug] Sync the @Published memoryEnabled

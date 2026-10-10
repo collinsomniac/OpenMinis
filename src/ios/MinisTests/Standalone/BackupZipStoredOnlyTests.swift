@@ -165,7 +165,7 @@ p16(&zip, 0); p16(&zip, 0)
 p16(&zip, UInt16(members.count)); p16(&zip, UInt16(members.count))
 p32(&zip, UInt32(cdSize)); p32(&zip, UInt32(cdStart)); p16(&zip, 0)
 
-let zipURL = tmp.appendingPathComponent("test.minisbak")
+let zipURL = tmp.appendingPathComponent("test.nablabak")
 try! zip.write(to: zipURL)
 
 print("\n2. the written package parses, and every entry is STORED")

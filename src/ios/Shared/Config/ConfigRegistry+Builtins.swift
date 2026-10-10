@@ -121,7 +121,7 @@ extension ConfigRegistry {
 
         // [T-soul-custom-icon] [T-soul-icon-config-images] Emoji OR an image.
         //
-        // An image may be given as a data URI, bare base64, a `minis://`
+        // An image may be given as a data URI, bare base64, a `nabla://`
         // resource, a path inside the minis directories, or an http(s) URL.
         // Whatever the source, it is decoded and pushed through the SAME
         // `SoulIconImage.encode` the Settings picker uses — alpha check,
@@ -163,7 +163,7 @@ extension ConfigRegistry {
                 + "      data:image/png;base64,iVBORw0KGgo...\n"
                 + "      MIME may be image/png, image/jpeg, image/webp, image/gif, image/heic or image/tiff.\n"
                 + "  • bare base64 (no data: prefix) — auto-detected, e.g. iVBORw0KGgo...\n"
-                + "  • minis:// resource, e.g. minis://attachments/icon.png or minis://workspace/icon.png\n"
+                + "  • nabla:// resource, e.g. nabla://attachments/icon.png or nabla://workspace/icon.png\n"
                 + "  • local path inside the minis directories, e.g. /var/minis/attachments/icon.png\n"
                 + "  • https:// URL, e.g. https://example.com/icon.png (http:// also works; "
                 + "private/loopback/link-local hosts are refused)\n"
@@ -183,7 +183,7 @@ extension ConfigRegistry {
                 + "\n"
                 + "EXAMPLES (note the value is JSON, so the string needs its own quotes)\n"
                 + "  minis-config set soul.icon '\"⚡\"'\n"
-                + "  minis-config set soul.icon '\"minis://attachments/icon.png\"'\n"
+                + "  minis-config set soul.icon '\"nabla://attachments/icon.png\"'\n"
                 + "  minis-config set soul.icon '\"https://example.com/icon.png\"'\n"
                 + "  minis-config set soul.icon '\"data:image/png;base64,iVBORw0KGgo...\"'\n"
                 + "  minis-config set soul.icon '\"\"'    # back to the default sparkle\n"
@@ -191,7 +191,7 @@ extension ConfigRegistry {
                 + "(a quoted string), not the raw image — write the quoted data URI to the file first:\n"
                 + "  printf '\"%s\"' \"data:image/png;base64,$(base64 -w0 icon.png)\" > /tmp/icon-value.json\n"
                 + "  minis-config set soul.icon --file /tmp/icon-value.json\n"
-                + "Simpler still: point at the file directly with minis:// or a path and skip base64 entirely.",
+                + "Simpler still: point at the file directly with nabla:// or a path and skip base64 entirely.",
             // Wide enough for an inline base64 argument; `SoulIconSource`
             // applies the real byte/pixel limits once it knows the source
             // kind. Emoji validation below is unchanged.
@@ -833,7 +833,7 @@ extension ConfigRegistry {
                 let ids = normalized.filter { valid.contains($0) }
                 let skipped = normalized.filter { !valid.contains($0) }
                 if !skipped.isEmpty {
-                    AppLogger(category: "MinisConfig").info("[MinisConfig] skipped unknown agentLoopEntries ids: \(skipped.joined(separator: ", "))")
+                    AppLogger(category: "NablaConfig").info("[NablaConfig] skipped unknown agentLoopEntries ids: \(skipped.joined(separator: ", "))")
                 }
                 store.agentLoopModelEntryIds = ids
             }
@@ -859,7 +859,7 @@ extension ConfigRegistry {
                 let ids = rawIds.filter { valid.contains($0) }
                 let skipped = rawIds.filter { !valid.contains($0) }
                 if !skipped.isEmpty {
-                    AppLogger(category: "MinisConfig").info("[MinisConfig] skipped unknown agentLoopGroups ids: \(skipped.joined(separator: ", "))")
+                    AppLogger(category: "NablaConfig").info("[NablaConfig] skipped unknown agentLoopGroups ids: \(skipped.joined(separator: ", "))")
                 }
                 ProviderConfigStore.shared.agentLoopGroupIds = ids
             }
@@ -1051,7 +1051,7 @@ extension ConfigRegistry {
         // The master switch surface. Agent CAN read it (so it knows why
         // it might be denied later in the session) but CAN'T write it —
         // the writer always throws. The bridge's first-line check on
-        // `MinisConfigPermissionStore.shared.enabled` will short-circuit
+        // `NablaConfigPermissionStore.shared.enabled` will short-circuit
         // most of these calls when the switch is off; the registration
         // exists for the rare case where the agent reads while we're
         // still enabled, plus to surface the switch in topic-help.
@@ -1095,7 +1095,7 @@ extension ConfigRegistry {
             access: .readonly,
             risk: .destructive,
             revertable: false,
-            reader: { .bool(MinisConfigPermissionStore.shared.enabled) },
+            reader: { .bool(NablaConfigPermissionStore.shared.enabled) },
             writer: { _ in
                 throw ConfigError.permissionDenied(
                     reason: "Master switch — toggle via Settings → Permissions only")

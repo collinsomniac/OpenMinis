@@ -70,7 +70,7 @@ enum RcloneRemoteStore {
         /// ROOT as the destination: `path` is "" and the join yields "/name" —
         /// a LEADING-SLASH path that rclone's WebDAV backend resolves against
         /// the server root, ESCAPING the folder baked into the fs URL. Seen
-        /// live: a package assembled to `http://host:8099/backup-….minisbak`
+        /// live: a package assembled to `http://host:8099/backup-….nablabak`
         /// instead of `…/backups/…`, then reported missing. Trimming slashes
         /// on both sides keeps every produced path fs-relative.
         func join(_ name: String) -> String {
@@ -147,7 +147,7 @@ enum RcloneRemoteStore {
 
     // MARK: - Secrets
 
-    private static let keychainService = "com.openminis.app.rclone"
+    private static let keychainService = "io.github.collinsomniac.nabla.rclone"
 
     private static func storeSecret(_ secret: String, for name: String) {
         let account = name

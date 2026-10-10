@@ -753,7 +753,7 @@ enum ModelsDevAPI {
 
     private static var cacheFileURL: URL {
         let caches = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!
-        return caches.appendingPathComponent("com.openminis.app.models-dev-cache").appendingPathComponent("api.json")
+        return caches.appendingPathComponent("io.github.collinsomniac.nabla.models-dev-cache").appendingPathComponent("api.json")
     }
 
     private static func loadDiskCache() -> (Data, Date)? {

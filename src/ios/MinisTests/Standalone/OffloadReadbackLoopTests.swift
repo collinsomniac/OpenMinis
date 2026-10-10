@@ -24,7 +24,7 @@ func checkEq<T: Equatable>(_ l: String, _ a: T, _ b: T) {
 /// Mirrors AIChatViewModel.isOffloadStorePath.
 func isOffloadStorePath(_ path: String) -> Bool {
     let p = path.trimmingCharacters(in: .whitespacesAndNewlines)
-    return p.hasPrefix("/var/minis/offloads/") || p.hasPrefix("minis://offloads/")
+    return p.hasPrefix("/var/minis/offloads/") || p.hasPrefix("nabla://offloads/")
 }
 
 /// Mirrors the tagging decision at the tool-result assembly point.
@@ -70,7 +70,7 @@ let big = String(repeating: "MOCK-BIG-PAYLOAD line xxxxxxxx\n", count: 800)   //
 print("\n[1] The path predicate")
 do {
     check("linux offload path", isOffloadStorePath("/var/minis/offloads/tools/file_read_c-1.txt"))
-    check("minis:// offload path", isOffloadStorePath("minis://offloads/file_read_x.txt"))
+    check("nabla:// offload path", isOffloadStorePath("nabla://offloads/file_read_x.txt"))
     check("surrounding whitespace tolerated", isOffloadStorePath("  /var/minis/offloads/a.txt "))
     // Deliberately narrower than isPersistentMinisPath: these are real sources
     // whose large results SHOULD still be offloadable.
@@ -183,7 +183,7 @@ if agentProv.isEmpty || offl.isEmpty { print("  ⏭  sources not readable") } el
           agentProv.contains("isOffloadReadback: Bool = false)"))
     check("the predicate exists and is offloads-only",
           offl.contains("nonisolated static func isOffloadStorePath(")
-          && offl.contains("p.hasPrefix(\"/var/minis/offloads/\") || p.hasPrefix(\"minis://offloads/\")"))
+          && offl.contains("p.hasPrefix(\"/var/minis/offloads/\") || p.hasPrefix(\"nabla://offloads/\")"))
     check("the tag is derived from the file_read ARGUMENT",
           conc.contains("guard tu.name == \"file_read\",")
           && conc.contains("return AIChatViewModel.isOffloadStorePath(path)"))

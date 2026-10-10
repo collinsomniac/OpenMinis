@@ -2,7 +2,7 @@ import SwiftUI
 
 struct OffloadPermissionSettingsView: View {
     @ObservedObject private var manager = OffloadPermissionManager.shared
-    @ObservedObject private var configGate = MinisConfigPermissionStore.shared
+    @ObservedObject private var configGate = NablaConfigPermissionStore.shared
     @ObservedObject private var correctionConsent = VoiceCorrectionCollectionConsent.shared
     @State private var showClearCorrectionConfirm = false
     @State private var correctionDataCleared = false

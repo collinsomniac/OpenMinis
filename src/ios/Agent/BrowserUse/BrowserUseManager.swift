@@ -163,7 +163,7 @@ final class BrowserUseManager: NSObject, ObservableObject {
 
     // MARK: - WebView Factory
 
-    /// Shared scheme handler for `minis://` URLs across all browser tabs
+    /// Shared scheme handler for `nabla://` URLs across all browser tabs
     /// and in-app previews that embed a WKWebView.
     static let sharedMinisSchemeHandler = MinisURLSchemeHandler()
 
@@ -187,7 +187,7 @@ final class BrowserUseManager: NSObject, ObservableObject {
         config.setURLSchemeHandler(Self.sharedMinisSchemeHandler, forURLScheme: "minis")
 
         // Bridge JS window.print() to the native iOS print dialog. Injected on
-        // every page (minis:// and external http/https) at document start so a
+        // every page (nabla:// and external http/https) at document start so a
         // print button works even if it fires before the page finishes loading.
         config.userContentController.addUserScript(printBridgeScript())
 
@@ -767,10 +767,10 @@ final class BrowserUseManager: NSObject, ObservableObject {
             return .error("Invalid URL: \(urlString)")
         }
 
-        // Only allow HTTP(S) and minis:// schemes for direct navigation
+        // Only allow HTTP(S) and nabla:// schemes for direct navigation
         let scheme = url.scheme?.lowercased() ?? ""
         if !["http", "https", "minis"].contains(scheme) {
-            return .error("Cannot navigate to \(scheme):// URLs. Only http://, https://, and minis:// are supported.")
+            return .error("Cannot navigate to \(scheme):// URLs. Only http://, https://, and nabla:// are supported.")
         }
 
         logger.info("[NavTiming] load_start url=\(url.absoluteString.prefix(100))")
@@ -2406,7 +2406,7 @@ extension BrowserUseManager: WKNavigationDelegate {
                 if let cont = self.navigationContinuation {
                     self.navigationContinuation = nil
                     cont.resume(throwing: URLError(.unsupportedURL, userInfo: [
-                        NSLocalizedDescriptionKey: "Blocked navigation to \(scheme):// — only http(s) and minis:// are allowed in the browser."
+                        NSLocalizedDescriptionKey: "Blocked navigation to \(scheme):// — only http(s) and nabla:// are allowed in the browser."
                     ]))
                 }
             }
@@ -2798,8 +2798,8 @@ extension BrowserUseManager: WKScriptMessageHandler {
 
 // MARK: - MinisURLSchemeHandler
 
-/// Handles `minis://` URLs in WKWebView by resolving them to local files.
-/// Supports `minis://workspace/file.html`, `minis://shared/...`, etc.
+/// Handles `nabla://` URLs in WKWebView by resolving them to local files.
+/// Supports `nabla://workspace/file.html`, `nabla://shared/...`, etc.
 final class MinisURLSchemeHandler: NSObject, WKURLSchemeHandler {
     private let logger = AppLogger(category: "MinisScheme")
 
@@ -2822,7 +2822,7 @@ final class MinisURLSchemeHandler: NSObject, WKURLSchemeHandler {
         let mimeType = Self.mimeType(for: fileURL.pathExtension)
         // [T-ios-minis-fetch-status-zero] Must be an HTTPURLResponse, not a bare
         // URLResponse. A plain URLResponse carries no status code, so JS running
-        // in a minis:// page saw `response.status === 0` and `response.ok ===
+        // in a nabla:// page saw `response.status === 0` and `response.ok ===
         // false` from fetch() even though the bytes arrived fine — the resource
         // loaded, but any code that checked `res.ok` before using it bailed out.
         // The charset rides in Content-Type here; HTTPURLResponse derives
@@ -2945,7 +2945,7 @@ final class BrowserDownloadCenter: ObservableObject {
                              progress: progress, state: .downloading,
                              startedAt: Date(), onCancel: onCancel))
         queueAgentEvent(sessionId: sessionId, filename: filename,
-                        line: "\(filename): download started → saving to minis://workspace/\(filename)")
+                        line: "\(filename): download started → saving to nabla://workspace/\(filename)")
         return id
     }
 
@@ -2955,7 +2955,7 @@ final class BrowserDownloadCenter: ObservableObject {
         entries[idx].seen = false
         let e = entries[idx]
         queueAgentEvent(sessionId: e.sessionId, filename: e.filename,
-                        line: "\(e.filename): download COMPLETED (\(sizeText)) → minis://workspace/\(e.filename) (shell path: /var/minis/workspace/\(e.filename))")
+                        line: "\(e.filename): download COMPLETED (\(sizeText)) → nabla://workspace/\(e.filename) (shell path: /var/minis/workspace/\(e.filename))")
     }
 
     func failed(id: UUID, reason: String) {
@@ -3014,7 +3014,7 @@ final class BrowserDownloadCenter: ObservableObject {
             let done = ByteCountFormatter.string(fromByteCount: p.completedUnitCount, countStyle: .file)
             let total = p.totalUnitCount > 0
                 ? ByteCountFormatter.string(fromByteCount: p.totalUnitCount, countStyle: .file) : "?"
-            return "\(e.filename): downloading \(pct) (\(done) / \(total)) → saving to minis://workspace/\(e.filename)"
+            return "\(e.filename): downloading \(pct) (\(done) / \(total)) → saving to nabla://workspace/\(e.filename)"
         }
         // A live progress line supersedes the same file's queued "started" line.
         lines += events.filter { !inflightNames.contains($0.filename) }.map(\.line)

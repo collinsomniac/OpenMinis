@@ -1,0 +1,31 @@
+{
+  "revision": "nabla-harp-v3",
+  "strings": 7,
+  "source": "source/icon.svg",
+  "source_sha256": "c5390615d8a73ce1bf7ca25aaf2ad685f3656b037f377f1606e7f6d89c1c2bb9",
+  "pixel_sizes": [
+    20,
+    29,
+    40,
+    58,
+    60,
+    76,
+    80,
+    87,
+    120,
+    152,
+    167,
+    180,
+    512,
+    1024,
+    2048,
+    4096
+  ],
+  "catalog_slots_checked": 19,
+  "color_space": "sRGB",
+  "icon_alpha_channel": false,
+  "validation": "All PNG dimensions, catalog references, RGB mode, and color profiles passed. Xcode compilation requires a Mac and has not been performed.",
+  "shadow_transform": "translate(24 24)",
+  "end_spacing_in_string_pitches": 1.5,
+  "linear_scale_from_previous_revision": 1.2
+}

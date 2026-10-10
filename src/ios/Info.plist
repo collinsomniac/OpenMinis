@@ -4,7 +4,7 @@
 <dict>
 	<key>BGTaskSchedulerPermittedIdentifiers</key>
 	<array>
-		<string>com.openminis.app.liveactivity-refresh</string>
+		<string>io.github.collinsomniac.nabla.liveactivity-refresh</string>
 	</array>
 	<key>CFBundleDocumentTypes</key>
 	<array>
@@ -22,14 +22,14 @@
 		</dict>
 		<dict>
 			<key>CFBundleTypeName</key>
-			<string>Minis Backup</string>
+			<string>Nabla Backup</string>
 			<key>CFBundleTypeRole</key>
 			<string>Viewer</string>
 			<key>LSHandlerRank</key>
 			<string>Owner</string>
 			<key>LSItemContentTypes</key>
 			<array>
-				<string>com.openminis.app.minisbak</string>
+				<string>io.github.collinsomniac.nabla.nablabak</string>
 			</array>
 		</dict>
 	</array>
@@ -163,7 +163,7 @@
 			<string>Claude OAuth Callback</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
-				<string>com.openminis.app</string>
+				<string>io.github.collinsomniac.nabla</string>
 			</array>
 		</dict>
 		<dict>
@@ -179,7 +179,7 @@
 			<string>MCP OAuth Callback</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
-				<string>minis-mcp</string>
+				<string>nabla-mcp</string>
 			</array>
 		</dict>
 	</array>
@@ -254,18 +254,18 @@
 				<string>public.archive</string>
 			</array>
 			<key>UTTypeDescription</key>
-			<string>Minis Backup</string>
+			<string>Nabla Backup</string>
 			<key>UTTypeIdentifier</key>
-			<string>com.openminis.app.minisbak</string>
+			<string>io.github.collinsomniac.nabla.nablabak</string>
 			<key>UTTypeTagSpecification</key>
 			<dict>
 				<key>public.filename-extension</key>
 				<array>
-					<string>minisbak</string>
+					<string>nablabak</string>
 				</array>
 				<key>public.mime-type</key>
 				<array>
-					<string>application/x-minisbak</string>
+					<string>application/x-nablabak</string>
 				</array>
 			</dict>
 		</dict>

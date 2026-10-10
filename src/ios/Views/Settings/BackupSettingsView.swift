@@ -571,7 +571,7 @@ struct BackupSettingsView: View {
         }
         // [review S14] The `pendingPackage` sheet used to live here. It is now
         // mounted at the WindowGroup root (MinisApp.swift) so opening a
-        // .minisbak from Files works from ANY screen — this view is the one
+        // .nablabak from Files works from ANY screen — this view is the one
         // place the user is least likely to already be standing when they
         // migrate to a new device.
     }

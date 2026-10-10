@@ -653,7 +653,7 @@ struct MCPFormSheet: View {
                 oauthScopes = oauth.scopes ?? ""
                 oauthRedirectURI = oauth.redirectURI ?? ""
                 // [T-mcp-cli-oauth-flags] Pull in a CLI-seeded secret before
-                // reading the Keychain, so `minis-mcp-cli add
+                // reading the Keychain, so `nabla-mcp-cli add
                 // --oauth-client-secret` shows up pre-filled here.
                 MCPOAuthController.importPendingSecretIfAny(server: server.id)
                 oauthClientSecret = MCPOAuthController.clientSecret(server: server.id) ?? ""

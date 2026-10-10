@@ -11,7 +11,7 @@ import AVFoundation
 import SwiftUI
 import UIKit
 
-// MARK: - minis:// Audio Preview (standalone sheet)
+// MARK: - nabla:// Audio Preview (standalone sheet)
 
 struct MinisAudioPreviewView: View {
     let fileURL: URL

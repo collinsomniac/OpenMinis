@@ -489,7 +489,7 @@ struct AIChatView: View {
     @State private var isChatViewVisible: Bool = false
 
 
-    // minis:// link preview sheet state — hoisted from MinisOpenURLHandler so
+    // nabla:// link preview sheet state — hoisted from MinisOpenURLHandler so
     // sheet presentation originates from a stable window-hierarchy root and
     // plays its slide-up transition correctly. See MinisOpenURLHandler for rationale.
     @State private var previewImageFile: URL?
@@ -505,7 +505,7 @@ struct AIChatView: View {
     @State private var fullBrowserURL: URL?
     @State private var fullBrowserIsLocal = false
     /// Filename to show in the "file missing" alert. Set by `handleMinisURLTap`
-    /// when `resolveMinisFileURL` returns nil for a tapped `minis://` link
+    /// when `resolveMinisFileURL` returns nil for a tapped `nabla://` link
     /// (file was deleted, the session was pruned, or iCloud hasn't synced yet).
     @State private var missingMinisFileName: String?
 
@@ -1000,7 +1000,7 @@ struct AIChatView: View {
         //  - http/https/about: in-chat WKWebView preview. ToolLiveSheet
         //    observes the same broker and takes priority for web URLs when
         //    it is on top (broker.toolSheetVisible).
-        //  - minis://...: chat-resource file preview (image/markdown/html/
+        //  - nabla://...: chat-resource file preview (image/markdown/html/
         //    pdf/...). Routed through handleMinisURLTap which already
         //    picks the right sheet by extension. Always dispatched here
         //    because ToolLiveSheet cannot host fullscreen file previews.
@@ -1318,7 +1318,7 @@ struct AIChatView: View {
             }
             // [T-minisurl-wrong-active-session] This view (plus the onChange
             // below) is the ONLY writer of activeSessionId: the global means
-            // "session whose chat UI is frontmost", and relative minis://
+            // "session whose chat UI is frontmost", and relative nabla://
             // resolution depends on it. Background flows (RPC, share, sync)
             // used to write it from loadSession()/ensureSessionReturningId()
             // and steal resolution out from under the visible session.
@@ -2749,12 +2749,12 @@ struct AIChatView: View {
                 onRetryMessage: { vm.retryFromMessage($0); vm.forceScrollToBottom.send() },
                 onRetryLast: { vm.retry(); vm.forceScrollToBottom.send() },
                 // [T-ios-assistant-header-open-soul] Routed through the same
-                // handler every `minis://` link in the transcript uses, so the
+                // handler every `nabla://` link in the transcript uses, so the
                 // identity row and an agent-authored
-                // `[Soul](minis://settings/soul)` link land identically —
+                // `[Soul](nabla://settings/soul)` link land identically —
                 // no second navigation path to keep in sync.
                 onOpenSoulSettings: {
-                    guard let url = URL(string: "minis://settings/soul") else { return }
+                    guard let url = URL(string: "nabla://settings/soul") else { return }
                     _ = handleMinisURLTap(url)
                 },
                 onEdit: { [self] msgId in
@@ -3000,7 +3000,7 @@ struct AIChatView: View {
     // MARK: - Drag & Drop Import
 
     /// Handle items dropped onto the chat from outside the app (Files, Photos, Safari, etc.).
-    /// Handle a minis:// or http(s):// URL tap forwarded from a cell-level
+    /// Handle a nabla:// or http(s):// URL tap forwarded from a cell-level
     /// view. Routes deep links and opens the appropriate file preview sheet
     /// (state lives on AIChatView so sheet animations play correctly).
     /// Route a tap on a markdown-embedded image into a paged gallery covering
@@ -3094,7 +3094,7 @@ struct AIChatView: View {
         imageGallery = GalleryPresentation(items: items, startIndex: startIndex)
     }
 
-    /// Load a markdown image source (already canonicalized to minis:// or
+    /// Load a markdown image source (already canonicalized to nabla:// or
     /// http(s)://) off the main thread. Caches in the shared
     /// `NativeMediaImageCache` using a fingerprint-derived key so
     /// in-place rewrites of local files are picked up on the next render.
@@ -3124,7 +3124,7 @@ struct AIChatView: View {
         }
         guard url.scheme == "minis" else { return .systemAction }
 
-        // Terminal deep link: minis://open_terminal?init_command=...
+        // Terminal deep link: nabla://open_terminal?init_command=...
         if url.host == "open_terminal" {
             let comps = URLComponents(url: url, resolvingAgainstBaseURL: false)
             let initCmd = comps?.queryItems?.first(where: { $0.name == "init_command" })?.value
@@ -3133,12 +3133,12 @@ struct AIChatView: View {
             dl.showTerminal = true
             return .handled
         }
-        // View deep links: minis://views/alarm
+        // View deep links: nabla://views/alarm
         if url.host == "views" && url.path == "/alarm" {
             DeepLinkCoordinator.shared.showAlarmList = true
             return .handled
         }
-        // Any minis://settings/<path> goes through DeepLinkRouter so all
+        // Any nabla://settings/<path> goes through DeepLinkRouter so all
         // supported settings sub-paths (logs, providers, model-groups,
         // usage, skills, memory, storage, mounts, shared-folders,
         // appearance, background, about, permissions, environments,

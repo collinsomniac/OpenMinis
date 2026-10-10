@@ -2091,7 +2091,7 @@ struct ContentView: View {
             }
         }
         // Something else is taking over the screen (an incoming share, a
-        // WebApp deep link, a `.minisbak` opened from Files). iOS will not
+        // WebApp deep link, a `.nablabak` opened from Files). iOS will not
         // present a second sheet from the same root while one is up, so a tool
         // sheet left open here silently swallows the new presentation — which
         // is exactly how opening a backup while sitting in Settings did
@@ -4629,7 +4629,7 @@ struct ContentView: View {
             }
         }
         .sheet(isPresented: $showRestoreBackup) {
-            // Same presentation as opening a .minisbak from Files: straight to
+            // Same presentation as opening a .nablabak from Files: straight to
             // the Restore tab. Not auto-dismissed on success — the result
             // report is worth reading; the steps above refresh on their own
             // (restore reloads ProviderConfigStore and the session list).

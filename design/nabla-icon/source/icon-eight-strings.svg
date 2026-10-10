@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" width="1024" height="1024" viewBox="0 0 1024 1024" role="img" aria-labelledby="title desc">
+  <title id="title">Nabla geometric harp — 8 strings</title>
+  <desc id="desc">An enlarged lavender nabla with 8 individually editable diagonal strings, one-and-a-half unused string spacings at both ends, and one dark purple same-size feathered shadow. The coral panel meets its crimson rim without a highlight outline.</desc>
+  <defs>
+    <linearGradient id="coral-gradient" x1="0" y1="0" x2="0" y2="1024" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ff6383"/><stop offset="1" stop-color="#ff405f"/>
+    </linearGradient>
+    <radialGradient id="coral-light" cx="420" cy="170" r="850" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.035"/><stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="lavender-gradient" x1="500" y1="170" x2="500" y2="886" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ad84fa"/><stop offset="1" stop-color="#a079f4"/>
+    </linearGradient>
+    <linearGradient id="tile-rim" x1="0" y1="0" x2="0" y2="1024" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#b92949"/><stop offset="1" stop-color="#cf3350"/>
+    </linearGradient>
+    <path id="triangle-ring" d="M 86.528 170 L 913.472 170 L 500 886.154512 Z M 277.829548 280.448 L 722.170452 280.448 L 500 665.258512 Z" fill-rule="evenodd" clip-rule="evenodd"/>
+    <!-- Foreground and shadow reuse this complete harp, including its strings. -->
+    <g id="harp-symbol">
+      <use href="#triangle-ring" xlink:href="#triangle-ring"/>
+      <g id="harp-strings">
+      <path id="string-01" d="M 335.2453 278.851848 L 530.090185 616.333087 L 542.560951 609.133087 L 347.716066 271.651848 Z"/>
+      <path id="string-02" d="M 379.679391 278.851848 L 552.30723 577.852036 L 564.777996 570.652036 L 392.150157 271.651848 Z"/>
+      <path id="string-03" d="M 424.113481 278.851848 L 574.524275 539.370985 L 586.995041 532.170985 L 436.584247 271.651848 Z"/>
+      <path id="string-04" d="M 468.547572 278.851848 L 596.741321 500.889934 L 609.212086 493.689934 L 481.018338 271.651848 Z"/>
+      <path id="string-05" d="M 512.981662 278.851848 L 618.958366 462.408883 L 631.429132 455.208883 L 525.452428 271.651848 Z"/>
+      <path id="string-06" d="M 557.415753 278.851848 L 641.175411 423.927831 L 653.646177 416.727831 L 569.886519 271.651848 Z"/>
+      <path id="string-07" d="M 601.849843 278.851848 L 663.392456 385.44678 L 675.863222 378.24678 L 614.320609 271.651848 Z"/>
+      <path id="string-08" d="M 646.283934 278.851848 L 685.609502 346.965729 L 698.080267 339.765729 L 658.7547 271.651848 Z"/>
+      </g>
+    </g>
+    <!-- Exactly one feather; no feDropShadow and no foreground shadow. -->
+    <filter id="shadow-feather" x="30" y="80" width="960" height="900" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feGaussianBlur stdDeviation="3.5"/>
+    </filter>
+  </defs>
+  <g id="background" inkscape:groupmode="layer" inkscape:label="Coral background"><rect width="1024" height="1024" fill="url(#tile-rim)"/><rect x="40" y="40" width="944" height="944" rx="214" fill="url(#coral-gradient)"/><rect x="40" y="40" width="944" height="944" rx="214" fill="url(#coral-light)"/></g>
+<g id="shadow" inkscape:groupmode="layer" inkscape:label="Purple harp shadow" transform="translate(24 24)" opacity="0.93"><use href="#harp-symbol" xlink:href="#harp-symbol" fill="#54216d" filter="url(#shadow-feather)"/></g>
+<g id="foreground" inkscape:groupmode="layer" inkscape:label="Lavender harp foreground"><use href="#harp-symbol" xlink:href="#harp-symbol" fill="url(#lavender-gradient)"/></g>
+</svg>

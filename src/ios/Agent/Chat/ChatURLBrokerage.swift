@@ -32,7 +32,7 @@ final class MinisOpenURLBroker: ObservableObject {
     @Published var pendingURL: URL?
     /// True while `ToolLiveSheet` is on-screen. When set, `AIChatView`
     /// skips auto-presenting *web* URLs so ToolLiveSheet can show the
-    /// preview nested on top of itself instead. `minis://` resource
+    /// preview nested on top of itself instead. `nabla://` resource
     /// previews are still dispatched by AIChatView because ToolLiveSheet
     /// cannot host image/markdown/QuickLook sheets.
     @Published var toolSheetVisible: Bool = false
@@ -57,7 +57,7 @@ final class MinisOpenURLBroker: ObservableObject {
     }
 
     /// True for schemes that render as an in-chat WKWebView (safariURL /
-    /// ToolLiveSheet.linkPreviewURL). `minis://` resources render as
+    /// ToolLiveSheet.linkPreviewURL). `nabla://` resources render as
     /// full-screen file previews instead and must be dispatched by
     /// AIChatView even when a tool sheet is on top.
     nonisolated static func isWebScheme(_ scheme: String?) -> Bool {

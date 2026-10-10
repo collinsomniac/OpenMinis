@@ -7,7 +7,7 @@ private let logger = AppLogger(category: "DeviceIdentity")
 /// Stable device identity persisted in Keychain (survives app reinstall).
 /// Used for per-device CKRecordZone naming in iCloud sync.
 enum DeviceIdentity {
-    private static let keychainService = "com.openminis.app.device"
+    private static let keychainService = "io.github.collinsomniac.nabla.device"
     private static let keychainAccount = "deviceId"
     /// [T-icloud-device-retire-old-id] Last id this install used (UserDefaults
     /// outlives the ThisDeviceOnly keychain item across reinstalls).

@@ -16,7 +16,7 @@ private let logger = AppLogger(category: "Backup")
 /// opposite: nothing local is deleted, and a newer local copy wins.
 struct BackupRestoreView: View {
     /// Optional package to open immediately — set when the flow is entered by
-    /// opening a `.minisbak` file from Files rather than from this screen.
+    /// opening a `.nablabak` file from Files rather than from this screen.
     var initialPackageURL: URL?
     /// True when hosted inside `BackupAndRestoreView`, which owns the title.
     var embedded = false
@@ -227,7 +227,7 @@ struct BackupRestoreView: View {
         } header: {
             Text("Other Sources")
         } footer: {
-            Text("Pick a .minisbak file from Files, iCloud Drive, or any connected storage — or add a server your backups were saved to.")
+            Text("Pick a .nablabak file from Files, iCloud Drive, or any connected storage — or add a server your backups were saved to.")
         }
     }
 
@@ -829,7 +829,7 @@ struct BackupRestoreView: View {
 
 // MARK: - Browse one shared folder
 
-/// The `.minisbak` packages inside a single mounted destination folder.
+/// The `.nablabak` packages inside a single mounted destination folder.
 ///
 /// [T-restore-destinations-first] The counterpart of `ServerPackageListView`
 /// for folder destinations, so both kinds of destination behave the same way:
@@ -870,7 +870,7 @@ struct FolderPackageListView: View {
                     Image(systemName: "externaldrive.badge.questionmark")
                         .font(.system(size: 40))
                         .foregroundStyle(.secondary)
-                    Text("No .minisbak files in this folder.")
+                    Text("No .nablabak files in this folder.")
                         .font(.headline)
                     Text("If it's on a server, open it once in the Files app to reconnect, then pull down to refresh.")
                         .font(.footnote)
@@ -903,7 +903,7 @@ struct FolderPackageListView: View {
             }
             } footer: {
                 if !packages.isEmpty {
-                    Text("Showing .minisbak files in this folder.")
+                    Text("Showing .nablabak files in this folder.")
                 }
             }
         }
@@ -1016,7 +1016,7 @@ final class CancelFlag: ObservableObject {
 }
 
 /// Browse ONE directory of a server, a level at a time, and pick a
-/// `.minisbak` to restore from.
+/// `.nablabak` to restore from.
 ///
 /// [T-restore-browse-tree] This used to list every package under the
 /// destination's configured folder in one shot. That is an expensive listing
@@ -1095,7 +1095,7 @@ struct ServerPackageListView: View {
 
                     entryRows
                 } footer: {
-                    Text("Open folders to browse. Only .minisbak files are shown.")
+                    Text("Open folders to browse. Only .nablabak files are shown.")
                 }
             }
             .refreshable { await reload() }

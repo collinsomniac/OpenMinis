@@ -1,0 +1,38 @@
+<?xml version='1.0' encoding='utf-8'?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" xmlns:xlink="http://www.w3.org/1999/xlink" width="1024" height="1024" viewBox="0 0 1024 1024" role="img" aria-labelledby="title desc">
+  <title id="title">Nabla geometric harp — 7 strings</title>
+  <desc id="desc">An enlarged lavender nabla with 7 individually editable diagonal strings, one-and-a-half unused string spacings at both ends, and one dark purple same-size feathered shadow. The coral panel meets its crimson rim without a highlight outline.</desc>
+  <defs>
+    <linearGradient id="coral-gradient" x1="0" y1="0" x2="0" y2="1024" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ff6383" /><stop offset="1" stop-color="#ff405f" />
+    </linearGradient>
+    <radialGradient id="coral-light" cx="420" cy="170" r="850" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.035" /><stop offset="1" stop-color="#ffffff" stop-opacity="0" />
+    </radialGradient>
+    <linearGradient id="lavender-gradient" x1="500" y1="170" x2="500" y2="886" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ad84fa" /><stop offset="1" stop-color="#a079f4" />
+    </linearGradient>
+    <linearGradient id="tile-rim" x1="0" y1="0" x2="0" y2="1024" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#b92949" /><stop offset="1" stop-color="#cf3350" />
+    </linearGradient>
+    <path id="triangle-ring" d="M 86.528 170 L 913.472 170 L 500 886.154512 Z M 277.829548 280.448 L 722.170452 280.448 L 500 665.258512 Z" fill-rule="evenodd" clip-rule="evenodd" />
+    
+    <g id="harp-symbol">
+      <use href="#triangle-ring" xlink:href="#triangle-ring" />
+      <g id="harp-strings">
+      <path id="string-01" d="M 342.650982 278.851848 L 533.793026 609.919579 L 546.263792 602.719579 L 355.121748 271.651848 Z" />
+      <path id="string-02" d="M 392.022194 278.851848 L 558.478632 567.162855 L 570.949397 559.962855 L 404.49296 271.651848 Z" />
+      <path id="string-03" d="M 441.393405 278.851848 L 583.164237 524.406132 L 595.635003 517.206132 L 453.864171 271.651848 Z" />
+      <path id="string-04" d="M 490.764617 278.851848 L 607.849843 481.649408 L 620.320609 474.449408 L 503.235383 271.651848 Z" />
+      <path id="string-05" d="M 540.135829 278.851848 L 632.535449 438.892685 L 645.006215 431.692685 L 552.606595 271.651848 Z" />
+      <path id="string-06" d="M 589.50704 278.851848 L 657.221055 396.135961 L 669.691821 388.935961 L 601.977806 271.651848 Z" />
+      <path id="string-07" d="M 638.878252 278.851848 L 681.906661 353.379238 L 694.377427 346.179238 L 651.349018 271.651848 Z" />
+      </g>
+    </g>
+    
+    <filter id="shadow-feather" x="30" y="80" width="960" height="900" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feGaussianBlur stdDeviation="3.5" />
+    </filter>
+  </defs>
+  <g id="shadow" inkscape:groupmode="layer" inkscape:label="Purple harp shadow" transform="translate(24 24)" opacity="0.93"><use href="#harp-symbol" xlink:href="#harp-symbol" fill="#54216d" filter="url(#shadow-feather)" /></g>
+</svg>

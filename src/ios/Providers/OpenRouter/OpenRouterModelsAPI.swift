@@ -187,7 +187,7 @@ private enum OpenRouterModelsCache {
             // speech / transcription catalogs were merged in hold no voice
             // models and no voiceRole, and would otherwise be served for up to
             // 7 more days — the fix would look like it did nothing.
-            .appendingPathComponent("com.openminis.app.openrouter-models-cache-v2", isDirectory: true)
+            .appendingPathComponent("io.github.collinsomniac.nabla.openrouter-models-cache-v2", isDirectory: true)
     }
 
     private static func cacheKey(for credential: String) -> String {

@@ -15,7 +15,7 @@ private let logger = AppLogger(category: "Rclone")
 ///
 /// [T-connect-and-save] Step 3 is SKIPPED when adding a server to restore
 /// FROM (`picksFolder == false`). There the stored path is only where browsing
-/// begins — the user then browses for the `.minisbak` itself — so asking them
+/// begins — the user then browses for the `.nablabak` itself — so asking them
 /// to commit to a folder first answered a question that did not matter, inside
 /// a picker that looked like it was saving something. Connecting is the whole
 /// job, and the button says so.
@@ -532,7 +532,7 @@ struct RcloneAddServerView: View {
     /// Create a subdirectory in the folder currently being browsed.
     ///
     /// Exists because the destination often does not exist yet: a user
-    /// pointing at a NAS share usually wants "…/Minis Backups", and without
+    /// pointing at a NAS share usually wants "…/Nabla Backups", and without
     /// this the only way to get one was to leave the app, make the folder in
     /// another client, and come back.
     private func createFolder() async {

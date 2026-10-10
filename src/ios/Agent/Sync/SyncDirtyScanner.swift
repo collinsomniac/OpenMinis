@@ -215,8 +215,8 @@ final class SyncDirtyScanner {
         }
 
         // [T-mcp-per-server-sync] mcp-servers/servers.json lives in the
-        // MinisConfig persistent dir (bind-mounted at /var/minis/mcp-servers),
-        // and is also written by the in-guest minis-mcp-cli — so an mtime scan
+        // NablaConfig persistent dir (bind-mounted at /var/minis/mcp-servers),
+        // and is also written by the in-guest nabla-mcp-cli — so an mtime scan
         // is the only way to catch CLI edits. The mtime is only the cheap
         // trigger: the actual dirty marking is per-server, done by
         // MCPStore.scanExternalChanges() against its persisted semantic

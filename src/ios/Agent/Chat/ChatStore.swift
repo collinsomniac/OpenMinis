@@ -5742,7 +5742,7 @@ extension RawMessage {
                             textContent += PastePlaceholder.literal(for: pastedId)
                         }
                         // Path must be under /var/minis/ for AttachmentMeta to
-                        // derive a resolvable `minis://` URL — the host path
+                        // derive a resolvable `nabla://` URL — the host path
                         // would fall through minisURL's guard unchanged and the
                         // card's tap would try to open a raw filesystem path.
                         // Rebuilt from relativePath (`<sid>/attachments/<uuid>.txt`)
@@ -5753,7 +5753,7 @@ extension RawMessage {
                         // The stored file is named by UUID, so the DISPLAY name
                         // comes from originalFileName (`Pasted#N.txt`) — without
                         // this the card would show a bare UUID.
-                        // relativePath is `<sid>/pasted/<uuid>.txt`; the minis://
+                        // relativePath is `<sid>/pasted/<uuid>.txt`; the nabla://
                         // resolver looks up `<base>/<sid>/<host>/<subPath>`, so
                         // host+subPath must be the REAL on-disk name (the uuid),
                         // not the display name — pointing it at `Pasted#N.txt`

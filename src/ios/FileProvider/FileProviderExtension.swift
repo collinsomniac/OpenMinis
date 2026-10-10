@@ -9,12 +9,12 @@ final class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
 
     let domain: NSFileProviderDomain
 
-    private static let log = OSLog(subsystem: "com.openminis.app.FileProvider", category: "Extension")
+    private static let log = OSLog(subsystem: "io.github.collinsomniac.nabla.FileProvider", category: "Extension")
 
     /// Root directory for all FileProvider-visible files in the App Group container.
     static var providerRoot: URL {
         let container = FileManager.default.containerURL(
-            forSecurityApplicationGroupIdentifier: "group.com.openminis.app"
+            forSecurityApplicationGroupIdentifier: "group.io.github.collinsomniac.nabla"
         )!
         let url = container.appendingPathComponent("MinisFileProvider", isDirectory: true)
         try? FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
@@ -83,7 +83,7 @@ final class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
     /// Two historical locations exist:
     ///   1. `<providerRoot>/logs/` — original buggy location (leaked
     ///      into iOS Files).
-    ///   2. `<App Group>/MinisConfig/logs/` — second iteration; private
+    ///   2. `<App Group>/NablaConfig/logs/` — second iteration; private
     ///      to the app, but still grew unbounded with one log file
     ///      written per FileProvider invocation.
     /// Both are now dead — the extension no longer writes any file
@@ -98,9 +98,9 @@ final class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
             try? fm.removeItem(at: inProvider)
         }
 
-        // Location 2: under MinisConfig (private but still pure cruft).
-        if let container = fm.containerURL(forSecurityApplicationGroupIdentifier: "group.com.openminis.app") {
-            let inConfig = container.appendingPathComponent("MinisConfig/logs", isDirectory: true)
+        // Location 2: under NablaConfig (private but still pure cruft).
+        if let container = fm.containerURL(forSecurityApplicationGroupIdentifier: "group.io.github.collinsomniac.nabla") {
+            let inConfig = container.appendingPathComponent("NablaConfig/logs", isDirectory: true)
             if fm.fileExists(atPath: inConfig.path, isDirectory: &isDir), isDir.boolValue {
                 try? fm.removeItem(at: inConfig)
             }
@@ -108,7 +108,7 @@ final class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
     }
 
     /// Delete a residual `mounted-folders.json` file that the main app
-    /// already migrated to `MinisConfig/`. If both copies exist the main
+    /// already migrated to `NablaConfig/`. If both copies exist the main
     /// app prefers the current-location one and drops the legacy one,
     /// but if migration didn't run (e.g. extension launched first on a
     /// cold boot) we should still not expose the stale copy to Files.
@@ -116,10 +116,10 @@ final class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
         let fm = FileManager.default
         let legacy = root.appendingPathComponent("mounted-folders.json")
         guard fm.fileExists(atPath: legacy.path) else { return }
-        // Only delete if the canonical copy already exists under MinisConfig —
+        // Only delete if the canonical copy already exists under NablaConfig —
         // otherwise we'd lose the data.
-        guard let container = fm.containerURL(forSecurityApplicationGroupIdentifier: "group.com.openminis.app") else { return }
-        let canonical = container.appendingPathComponent("MinisConfig/mounted-folders.json")
+        guard let container = fm.containerURL(forSecurityApplicationGroupIdentifier: "group.io.github.collinsomniac.nabla") else { return }
+        let canonical = container.appendingPathComponent("NablaConfig/mounted-folders.json")
         if fm.fileExists(atPath: canonical.path) {
             try? fm.removeItem(at: legacy)
         }

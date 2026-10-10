@@ -146,7 +146,7 @@ let tools = [ToolDef(name: "file_write", required: ["path", "content"]),
 
 func isOffloadStorePath(_ path: String) -> Bool {
     let p = path.trimmingCharacters(in: .whitespacesAndNewlines)
-    return p.hasPrefix("/var/minis/offloads/") || p.hasPrefix("minis://offloads/")
+    return p.hasPrefix("/var/minis/offloads/") || p.hasPrefix("nabla://offloads/")
 }
 struct Part { var content: String; var isOffloadReadback = false }
 func offloadCandidates(_ parts: [Part]) -> [Int] {

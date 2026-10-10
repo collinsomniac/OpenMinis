@@ -158,7 +158,7 @@ final class MountedFoldersManager {
 
     // MARK: - Persistence
 
-    /// Mounts metadata lives in the App Group's private MinisConfig subdir
+    /// Mounts metadata lives in the App Group's private NablaConfig subdir
     /// so it does NOT leak into iOS Files' "On My iPhone → Minis" view.
     /// Historically stored in `minisAppGroupRoot/mounted-folders.json`, but
     /// that path sits inside the FileProvider's exposed root.
@@ -172,7 +172,7 @@ final class MountedFoldersManager {
         AIChatViewModel.minisAppGroupRoot.appendingPathComponent("mounted-folders.json")
     }
 
-    /// Move `mounted-folders.json` out of providerRoot into MinisConfig the
+    /// Move `mounted-folders.json` out of providerRoot into NablaConfig the
     /// first time this runs after the fix. Safe to call on every launch.
     private func migrateStoreFileIfNeeded() {
         let fm = FileManager.default
@@ -187,13 +187,13 @@ final class MountedFoldersManager {
         }
         do {
             try fm.moveItem(at: legacy, to: current)
-            mountLog.info("migrateStoreFile: moved \(legacy.lastPathComponent) to MinisConfig/")
+            mountLog.info("migrateStoreFile: moved \(legacy.lastPathComponent) to NablaConfig/")
         } catch {
             // Fallback: copy + delete, in case move-across-bind fails.
             do {
                 try fm.copyItem(at: legacy, to: current)
                 try fm.removeItem(at: legacy)
-                mountLog.info("migrateStoreFile: copied \(legacy.lastPathComponent) to MinisConfig/ (move failed, copy+delete succeeded)")
+                mountLog.info("migrateStoreFile: copied \(legacy.lastPathComponent) to NablaConfig/ (move failed, copy+delete succeeded)")
             } catch {
                 mountLog.warning("migrateStoreFile failed: \(error.localizedDescription)")
             }

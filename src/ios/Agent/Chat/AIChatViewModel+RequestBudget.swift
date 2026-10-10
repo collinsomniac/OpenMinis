@@ -280,7 +280,7 @@ extension AIChatViewModel {
     nonisolated static var minisConfigRoot: URL {
         let url = FileManager.default.containerURL(
             forSecurityApplicationGroupIdentifier: SharedContainerStore.appGroupID
-        )!.appendingPathComponent("MinisConfig", isDirectory: true)
+        )!.appendingPathComponent("NablaConfig", isDirectory: true)
         try? FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
         return url
     }
@@ -304,14 +304,14 @@ extension AIChatViewModel {
     }
 
     /// Persistent storage directory for MCP server configs (servers.json,
-    /// daemon log). Deliberately under MinisConfig, NOT minisAppGroupRoot:
+    /// daemon log). Deliberately under NablaConfig, NOT minisAppGroupRoot:
     /// servers.json carries credentials (Authorization headers, API keys) and
     /// must never surface in iOS Files via the FileProvider extension.
     nonisolated static var minisMcpServersPersistentDir: URL {
         minisConfigRoot.appendingPathComponent("mcp-servers", isDirectory: true)
     }
 
-    /// Resolve a `minis://` URL to a host filesystem URL.
+    /// Resolve a `nabla://` URL to a host filesystem URL.
     /// Shared resolution logic used by Markdown link handlers and the browser's WKURLSchemeHandler.
     ///
     /// [T-minisurl-wrong-active-session] `sessionId` scopes the per-session

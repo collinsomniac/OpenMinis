@@ -1072,7 +1072,7 @@ static void handle_process_exit(struct task *task, int code) {
 /// that (`deps/ish/fs/sock.c:280`). The compiled-in default is `/tmp/ishsock`
 /// (`fs/sock.c:229`), i.e. the iOS host `/tmp`, which no sandboxed app may
 /// write. Every guest `bind()` therefore failed with EPERM: Terraform/OpenTofu
-/// provider handshakes could never start (GH#175), and the minis-mcp-cli daemon
+/// provider handshakes could never start (GH#175), and the nabla-mcp-cli daemon
 /// had to fall back to loopback TCP.
 ///
 /// Upstream iSH fixed this in 2019 (`7704024a`) inside `app/AppDelegate.m`.

@@ -185,8 +185,8 @@ print("\n▶️  5. shipping source still carries the fix")
 do {
     let off = codeOnly(source("Agent/Chat/AIChatViewModel+Offloading.swift"))
     let mcp = codeOnly(source("Agent/Session/MCPOAuthController.swift"))
-    let cli = source("default_mount/usr/local/bin/minis-mcp-cli")
-    let http = source("default_mount/usr/local/lib/minis-mcp-cli/transport/http.py")
+    let cli = source("default_mount/usr/local/bin/nabla-mcp-cli")
+    let http = source("default_mount/usr/local/lib/nabla-mcp-cli/transport/http.py")
     if off.isEmpty || mcp.isEmpty || cli.isEmpty || http.isEmpty {
         print("  ⏭  sources not readable")
     } else {

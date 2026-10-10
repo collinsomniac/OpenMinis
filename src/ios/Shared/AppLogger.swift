@@ -3,7 +3,7 @@ import Foundation
 struct AppLogger {
     let category: String
 
-    init(subsystem: String = "com.openminis.app", category: String) {
+    init(subsystem: String = "io.github.collinsomniac.nabla", category: String) {
         self.category = category
     }
 
@@ -173,7 +173,7 @@ struct AppLogger {
     // if the app crashes inside the window. Crash-window logs are exactly the
     // ones an investigation needs. The 512-line cap is per-thread for the same
     // reason: one busy thread must not consume another's budget.
-    private static let deferralDepthKey = "com.openminis.applogger.deferralState"
+    private static let deferralDepthKey = "io.github.collinsomniac.nablalogger.deferralState"
 
     private final class DeferralBox {
         var depth = 0

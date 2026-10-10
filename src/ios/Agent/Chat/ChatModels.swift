@@ -13,7 +13,7 @@ struct AttachmentMeta: Identifiable, Equatable {
     let size: Int
     let modified: Date
     /// Card label override for files whose on-disk name is an opaque UUID
-    /// (pasted-text refs). `path` must keep the REAL name — the minis://
+    /// (pasted-text refs). `path` must keep the REAL name — the nabla://
     /// resolver looks files up by it — so the human-readable name travels
     /// separately. nil = show the path's last component as before.
     var displayName: String? = nil
@@ -25,11 +25,11 @@ struct AttachmentMeta: Identifiable, Equatable {
     var pastedId: Int? = nil
     var pastedCharCount: Int? = nil
 
-    /// Derive a `minis://` URL from the Linux path.
+    /// Derive a `nabla://` URL from the Linux path.
     var minisURL: String {
         guard path.hasPrefix("/var/minis/") else { return path }
         let rel = String(path.dropFirst("/var/minis/".count))
-        return "minis://\(rel)"
+        return "nabla://\(rel)"
     }
 
     var fileName: String {

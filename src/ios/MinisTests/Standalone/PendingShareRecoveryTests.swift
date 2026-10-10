@@ -274,7 +274,7 @@ do {
     d.now = t0
     d.disk.savePendingShare(PendingShare(items: [ShareItem(kind: "text", value: "x")], timestamp: t0))
     _ = coldLaunch(d)
-    d.raisePendingShare()                                 // minis://share arrives late
+    d.raisePendingShare()                                 // nabla://share arrives late
     checkEq("second raise with the buffer already staged is a no-op", processPendingShare(d), "duplicate-raise-noop")
     checkEq("the buffer is untouched", d.pendingShareBuffer?.share.items.count, 1)
     check("hasPendingShare lowered again", !d.hasPendingShare)
@@ -292,7 +292,7 @@ do {
     check("an expired buffer is dropped with a toast", ttl.consumeBuffer() == nil && ttl.toasts.count == 1)
 
     // The check is disk-only: nothing about an intent extra is consulted.
-    knownGap("every foreground return (scenePhase .active) re-checks the disk record, not only onAppear / minis://share (spec: check on every return to the foreground)",
+    knownGap("every foreground return (scenePhase .active) re-checks the disk record, not only onAppear / nabla://share (spec: check on every return to the foreground)",
              false)
 }
 
@@ -407,7 +407,7 @@ if [coord, app, cv, chat, life, deep].contains(where: { $0.isEmpty }) {
           coord.contains("func checkForPendingShare() {") && coord.contains("if let pending = SharedContainerStore.loadPendingShare() {"))
     check("…with the 300 s staleness cut", coord.contains("if age < 300 {"))
     check("the root view calls it on appear with no argument", app.contains("shareCoordinator.checkForPendingShare()"))
-    check("minis://share funnels through raisePendingShare", deep.contains("case \"share\":") && deep.contains("shareCoordinator.raisePendingShare()"))
+    check("nabla://share funnels through raisePendingShare", deep.contains("case \"share\":") && deep.contains("shareCoordinator.raisePendingShare()"))
     check("raisePendingShare coalesces", coord.contains("guard !hasPendingShare, !raiseInFlight else {"))
     check("processPendingShare treats a consumed record + staged buffer as a duplicate raise",
           cv.contains("record already consumed, buffer staged (duplicate raise) — no-op"))

@@ -790,8 +790,8 @@ extension AIChatViewModel {
 
                 if pathArg.hasPrefix("/var/minis/") {
                     toolImageLinuxPath = pathArg
-                } else if pathArg.hasPrefix("minis://") {
-                    let tail = String(pathArg.dropFirst("minis://".count))
+                } else if pathArg.hasPrefix("nabla://") {
+                    let tail = String(pathArg.dropFirst("nabla://".count))
                     if !tail.isEmpty {
                         toolImageLinuxPath = "/var/minis/\(tail)"
                     }

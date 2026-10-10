@@ -55,9 +55,13 @@ for appex in ("MinisShare.appex", "MinisFileProvider.appex", "AgentWidgetExtensi
     print(f"  {appex}: embed references left = {still}")
 
 # --- 3. entitlements ---------------------------------------------------------------------------
+# Keep only what a free team can sign. Nabla gets its OWN app group (not Minis'), which is what
+# makes the two apps independent — and what the app group container lookup needs to succeed.
 ents = plistlib.loads(ENT.read_bytes())
 print("entitlements before:", sorted(ents))
-keep = {}  # nothing in the stock set is signable by a free team except app groups, which needs registration
-keep["com.apple.developer.kernel.increased-memory-limit"] = True
+keep = {
+    "com.apple.developer.kernel.increased-memory-limit": True,
+    "com.apple.security.application-groups": ["group.io.github.collinsomniac.nabla"],
+}
 ENT.write_bytes(plistlib.dumps(keep))
 print("entitlements after: ", sorted(keep))

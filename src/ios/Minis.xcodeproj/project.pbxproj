@@ -174,7 +174,7 @@
 		E5CCB1001 /* CorrectionContextBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5CCB0011 /* CorrectionContextBuilder.swift */; };
 		E5CFG0001 /* ConfigAuditEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5CFG0011 /* ConfigAuditEntry.swift */; };
 		E5CFG0002 /* ConfigAuditLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5CFG0012 /* ConfigAuditLog.swift */; };
-		E5CFG0003 /* MinisConfigPermissionStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5CFG0013 /* MinisConfigPermissionStore.swift */; };
+		E5CFG0003 /* NablaConfigPermissionStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5CFG0013 /* NablaConfigPermissionStore.swift */; };
 		E5CFG0004 /* ConfigError.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5CFG0014 /* ConfigError.swift */; };
 		E5CFG0005 /* ConfigField.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5CFG0015 /* ConfigField.swift */; };
 		E5CFG0006 /* AppStorageFields.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5CFG0016 /* AppStorageFields.swift */; };
@@ -858,7 +858,7 @@
 		E5CCB0011 /* CorrectionContextBuilder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CorrectionContextBuilder.swift; sourceTree = "<group>"; };
 		E5CFG0011 /* ConfigAuditEntry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ConfigAuditEntry.swift; path = Config/Audit/ConfigAuditEntry.swift; sourceTree = "<group>"; };
 		E5CFG0012 /* ConfigAuditLog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ConfigAuditLog.swift; path = Config/Audit/ConfigAuditLog.swift; sourceTree = "<group>"; };
-		E5CFG0013 /* MinisConfigPermissionStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = MinisConfigPermissionStore.swift; path = Config/MinisConfigPermissionStore.swift; sourceTree = "<group>"; };
+		E5CFG0013 /* NablaConfigPermissionStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = NablaConfigPermissionStore.swift; path = Config/NablaConfigPermissionStore.swift; sourceTree = "<group>"; };
 		E5CFG0014 /* ConfigError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ConfigError.swift; path = Config/ConfigError.swift; sourceTree = "<group>"; };
 		E5CFG0015 /* ConfigField.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ConfigField.swift; path = Config/ConfigField.swift; sourceTree = "<group>"; };
 		E5CFG0016 /* AppStorageFields.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppStorageFields.swift; path = Config/Fields/AppStorageFields.swift; sourceTree = "<group>"; };
@@ -1855,7 +1855,7 @@
 				E5QA0103 /* QuickActionWorkflow.swift */,
 				E5CFG0011 /* ConfigAuditEntry.swift */,
 				E5CFG0012 /* ConfigAuditLog.swift */,
-				E5CFG0013 /* MinisConfigPermissionStore.swift */,
+				E5CFG0013 /* NablaConfigPermissionStore.swift */,
 				E5CFG0014 /* ConfigError.swift */,
 				E5CFG0015 /* ConfigField.swift */,
 				E5CFG0016 /* AppStorageFields.swift */,
@@ -3135,7 +3135,7 @@
 				E5P000004 /* DeepLinkRouter.swift in Sources */,
 				E5CFG0001 /* ConfigAuditEntry.swift in Sources */,
 				E5CFG0002 /* ConfigAuditLog.swift in Sources */,
-				E5CFG0003 /* MinisConfigPermissionStore.swift in Sources */,
+				E5CFG0003 /* NablaConfigPermissionStore.swift in Sources */,
 				E5CFG0004 /* ConfigError.swift in Sources */,
 				E5CFG0005 /* ConfigField.swift in Sources */,
 				E5CFG0006 /* AppStorageFields.swift in Sources */,
@@ -3364,7 +3364,7 @@
 				IPHONEOS_DEPLOYMENT_TARGET = 26.2;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.openminis.MinisUITests;
-				PRODUCT_NAME = "$(TARGET_NAME)";
+				PRODUCT_NAME = "Nabla";
 				STRING_CATALOG_GENERATE_SYMBOLS = NO;
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_VERSION = 6.0;
@@ -3384,7 +3384,7 @@
 				IPHONEOS_DEPLOYMENT_TARGET = 26.2;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.openminis.MinisUITests;
-				PRODUCT_NAME = "$(TARGET_NAME)";
+				PRODUCT_NAME = "Nabla";
 				STRING_CATALOG_GENERATE_SYMBOLS = NO;
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_VERSION = 6.0;
@@ -3416,7 +3416,7 @@
 				IPHONEOS_DEPLOYMENT_TARGET = 26.2;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.openminis.MinisTests;
-				PRODUCT_NAME = "$(TARGET_NAME)";
+				PRODUCT_NAME = "Nabla";
 				STRING_CATALOG_GENERATE_SYMBOLS = NO;
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_OBJC_BRIDGING_HEADER = "MinisApp-Bridging-Header.h";
@@ -3445,7 +3445,7 @@
 				IPHONEOS_DEPLOYMENT_TARGET = 26.2;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.openminis.MinisTests;
-				PRODUCT_NAME = "$(TARGET_NAME)";
+				PRODUCT_NAME = "Nabla";
 				STRING_CATALOG_GENERATE_SYMBOLS = NO;
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_OBJC_BRIDGING_HEADER = "MinisApp-Bridging-Header.h";
@@ -3628,8 +3628,9 @@
 					"-lfakefs",
 				);
 				OTHER_SWIFT_FLAGS = "";
-				PRODUCT_BUNDLE_IDENTIFIER = com.openminis.app;
-				PRODUCT_NAME = "$(TARGET_NAME)";
+				PRODUCT_BUNDLE_IDENTIFIER = io.github.collinsomniac.nabla;
+				INFOPLIST_KEY_CFBundleDisplayName = Nabla;
+				PRODUCT_NAME = "Nabla";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_OBJC_BRIDGING_HEADER = "$(SRCROOT)/MinisApp-Bridging-Header.h";
 				SWIFT_VERSION = 5.0;
@@ -3682,8 +3683,9 @@
 					"-lfakefs",
 				);
 				OTHER_SWIFT_FLAGS = "";
-				PRODUCT_BUNDLE_IDENTIFIER = com.openminis.app;
-				PRODUCT_NAME = "$(TARGET_NAME)";
+				PRODUCT_BUNDLE_IDENTIFIER = io.github.collinsomniac.nabla;
+				INFOPLIST_KEY_CFBundleDisplayName = Nabla;
+				PRODUCT_NAME = "Nabla";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_OBJC_BRIDGING_HEADER = "$(SRCROOT)/MinisApp-Bridging-Header.h";
 				SWIFT_VERSION = 5.0;
@@ -3709,8 +3711,8 @@
 					"@executable_path/../../Frameworks",
 				);
 				MARKETING_VERSION = 1.14;
-				PRODUCT_BUNDLE_IDENTIFIER = com.openminis.app.ShareExtension;
-				PRODUCT_NAME = "$(TARGET_NAME)";
+				PRODUCT_BUNDLE_IDENTIFIER = io.github.collinsomniac.nabla.ShareExtension;
+				PRODUCT_NAME = "Nabla";
 				SKIP_INSTALL = YES;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
@@ -3736,8 +3738,8 @@
 					"@executable_path/../../Frameworks",
 				);
 				MARKETING_VERSION = 1.14;
-				PRODUCT_BUNDLE_IDENTIFIER = com.openminis.app.ShareExtension;
-				PRODUCT_NAME = "$(TARGET_NAME)";
+				PRODUCT_BUNDLE_IDENTIFIER = io.github.collinsomniac.nabla.ShareExtension;
+				PRODUCT_NAME = "Nabla";
 				SKIP_INSTALL = YES;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
@@ -3763,8 +3765,8 @@
 					"@executable_path/../../Frameworks",
 				);
 				MARKETING_VERSION = 1.14;
-				PRODUCT_BUNDLE_IDENTIFIER = com.openminis.app.FileProvider;
-				PRODUCT_NAME = "$(TARGET_NAME)";
+				PRODUCT_BUNDLE_IDENTIFIER = io.github.collinsomniac.nabla.FileProvider;
+				PRODUCT_NAME = "Nabla";
 				SKIP_INSTALL = YES;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
@@ -3790,8 +3792,8 @@
 					"@executable_path/../../Frameworks",
 				);
 				MARKETING_VERSION = 1.14;
-				PRODUCT_BUNDLE_IDENTIFIER = com.openminis.app.FileProvider;
-				PRODUCT_NAME = "$(TARGET_NAME)";
+				PRODUCT_BUNDLE_IDENTIFIER = io.github.collinsomniac.nabla.FileProvider;
+				PRODUCT_NAME = "Nabla";
 				SKIP_INSTALL = YES;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
@@ -3817,8 +3819,8 @@
 					"@executable_path/../../Frameworks",
 				);
 				MARKETING_VERSION = 1.14;
-				PRODUCT_BUNDLE_IDENTIFIER = com.openminis.app.AgentWidget;
-				PRODUCT_NAME = "$(TARGET_NAME)";
+				PRODUCT_BUNDLE_IDENTIFIER = io.github.collinsomniac.nabla.AgentWidget;
+				PRODUCT_NAME = "Nabla";
 				SKIP_INSTALL = YES;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
@@ -3844,8 +3846,8 @@
 					"@executable_path/../../Frameworks",
 				);
 				MARKETING_VERSION = 1.14;
-				PRODUCT_BUNDLE_IDENTIFIER = com.openminis.app.AgentWidget;
-				PRODUCT_NAME = "$(TARGET_NAME)";
+				PRODUCT_BUNDLE_IDENTIFIER = io.github.collinsomniac.nabla.AgentWidget;
+				PRODUCT_NAME = "Nabla";
 				SKIP_INSTALL = YES;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;

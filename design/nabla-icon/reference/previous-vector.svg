@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" width="1024" height="1024" viewBox="0 0 1024 1024" role="img" aria-labelledby="title desc">
+  <title id="title">Coral and lavender triangle icon — equal-edge</title>
+  <desc id="desc">Editable equilateral triangular ring over a coral background. Its single dark-purple shadow uses the identical ring, translated (24, 41.569219) and gently feathered. No bitmap images or extra drop shadows.</desc>
+  <defs>
+    <linearGradient id="coral-gradient" x1="0" y1="0" x2="0" y2="1024" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ff6383"/>
+      <stop offset="1" stop-color="#ff405f"/>
+    </linearGradient>
+    <radialGradient id="coral-light" cx="420" cy="170" r="850" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.035"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="lavender-gradient" x1="512" y1="270" x2="512" y2="780" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ad84fa"/>
+      <stop offset="1" stop-color="#a079f4"/>
+    </linearGradient>
+    <linearGradient id="tile-rim" x1="0" y1="0" x2="0" y2="1024" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#b92949"/>
+      <stop offset="1" stop-color="#cf3350"/>
+    </linearGradient>
+    <!-- One reusable ring: the shadow and foreground cannot drift in size. -->
+    <path id="triangle-ring" d="M 220 270 L 804 270 L 512 775.758836 Z M 355.099963 348 L 668.900037 348 L 512 619.758836 Z" fill-rule="evenodd" clip-rule="evenodd"/>
+    <!-- Blur this colored shape directly. No feDropShadow, black halo, or second shadow. -->
+    <filter id="shadow-feather" x="100" y="150" width="850" height="800" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feGaussianBlur stdDeviation="3.5"/>
+    </filter>
+  </defs>
+  <g id="background" inkscape:groupmode="layer" inkscape:label="Coral background"><rect width="1024" height="1024" fill="url(#tile-rim)"/><rect x="40" y="40" width="944" height="944" rx="214" fill="url(#coral-gradient)"/><rect x="40" y="40" width="944" height="944" rx="214" fill="url(#coral-light)"/><rect x="40" y="40" width="944" height="944" rx="214" fill="none" stroke="#ff91a5" stroke-opacity="0.55" stroke-width="3"/></g>
+<g id="shadow" inkscape:groupmode="layer" inkscape:label="Purple shadow — feather only" transform="translate(24 41.569219)" opacity="0.93"><use href="#triangle-ring" xlink:href="#triangle-ring" fill="#54216d" filter="url(#shadow-feather)"/></g>
+<g id="foreground" inkscape:groupmode="layer" inkscape:label="Lavender foreground"><use href="#triangle-ring" xlink:href="#triangle-ring" fill="url(#lavender-gradient)"/></g>
+</svg>

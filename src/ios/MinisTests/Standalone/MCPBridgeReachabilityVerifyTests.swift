@@ -10,7 +10,7 @@
 // success unless the bytes are verified here".
 //
 // But the read-back uses the SAME URL as the write —
-// `bridgeFileURL(server:)`, i.e. `<AppGroup>/MinisConfig/mcp-servers/oauth/…`
+// `bridgeFileURL(server:)`, i.e. `<AppGroup>/NablaConfig/mcp-servers/oauth/…`
 // — so it succeeds whenever the write did. It never looks at the guest-visible
 // path, so in exactly the #380 state (placeholder dir squatting the link) the
 // authorization is still reported as successful.
@@ -44,7 +44,7 @@ func source(_ rel: String) -> String {
 
 let fm = FileManager.default
 let tmp = fm.temporaryDirectory.appendingPathComponent("mcp-bridge-\(UUID().uuidString)")
-let persistent = tmp.appendingPathComponent("AppGroup/MinisConfig/mcp-servers", isDirectory: true)
+let persistent = tmp.appendingPathComponent("AppGroup/NablaConfig/mcp-servers", isDirectory: true)
 let guestLink = tmp.appendingPathComponent("fakefs/data/var/minis/mcp-servers", isDirectory: true)
 try! fm.createDirectory(at: persistent, withIntermediateDirectories: true)
 try! fm.createDirectory(at: guestLink.deletingLastPathComponent(), withIntermediateDirectories: true)

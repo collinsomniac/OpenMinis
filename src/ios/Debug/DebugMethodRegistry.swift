@@ -193,7 +193,7 @@ enum DebugMethodRegistry {
         ),
         MethodSpec(
             name: "debug.backup.export",
-            description: "Build a .minisbak package (export only; unencrypted, stage 1).",
+            description: "Build a .nablabak package (export only; unencrypted, stage 1).",
             params: [
                 ParamSpec(name: "categories", type: "array", required: false, default: nil,
                           description: "Category raw values; default = all. Known: chats, shared_files, skills, memory, providers, mcp_servers, voice_corrections"),
@@ -204,7 +204,7 @@ enum DebugMethodRegistry {
                 ParamSpec(name: "includeCredentials", type: "boolean", required: false, default: true,
                           description: "Include Keychain credentials in secrets.json. false = share copy."),
                 ParamSpec(name: "passphrase", type: "string", required: false, default: nil,
-                          description: "Encrypt the package (minisbak-enc/1). REQUIRED when credentials are included."),
+                          description: "Encrypt the package (nablabak-enc/1). REQUIRED when credentials are included."),
                 ParamSpec(name: "deliver", type: "boolean", required: false, default: false,
                           description: "Move the package into Files-visible shared storage (Minis ▸ Backups), the path the Backup UI uses."),
             ],
@@ -213,10 +213,10 @@ enum DebugMethodRegistry {
         ),
         MethodSpec(
             name: "debug.backup.restore",
-            description: "Import a .minisbak package (stage 2: Merge mode, unencrypted).",
+            description: "Import a .nablabak package (stage 2: Merge mode, unencrypted).",
             params: [
                 ParamSpec(name: "path", type: "string", required: true, default: nil,
-                          description: "Path to the .minisbak file"),
+                          description: "Path to the .nablabak file"),
                 ParamSpec(name: "categories", type: "array", required: false, default: nil,
                           description: "Category raw values; default = all present in the package"),
                 ParamSpec(name: "skipIntegrityCheck", type: "boolean", required: false, default: false,
@@ -225,21 +225,21 @@ enum DebugMethodRegistry {
                           description: "Required to restore an encrypted package"),
             ],
             returns: "{backupId, durationMs, integrityChecked, integrityFailed, rolledBack, totals, categories, warnings}",
-            example: ["path": "/…/backup.minisbak"]
+            example: ["path": "/…/backup.nablabak"]
         ),
         MethodSpec(
             name: "debug.backup.cleanup",
-            description: "Delete .minisbak packages left in Documents by export {keep:true}.",
+            description: "Delete .nablabak packages left in Documents by export {keep:true}.",
             params: [],
             returns: "{removed, count, freedBytes}",
             example: [:]
         ),
         MethodSpec(
             name: "debug.backup.rescue",
-            description: "Salvage what can be read from a damaged .minisbak: rescue.json, manifest.json, its tail copy, and the surviving member list.",
+            description: "Salvage what can be read from a damaged .nablabak: rescue.json, manifest.json, its tail copy, and the surviving member list.",
             params: [
                 ParamSpec(name: "path", type: "string", required: true, default: nil,
-                          description: "Path to the (possibly damaged) .minisbak file"),
+                          description: "Path to the (possibly damaged) .nablabak file"),
             ],
             returns: "{stages, backupId, blobCount, sessionCount, sessions, blobs, categories, missingMembers, notImplemented}",
             example: [:]
@@ -251,30 +251,30 @@ enum DebugMethodRegistry {
                 ParamSpec(name: "select", type: "array", required: false, default: nil,
                           description: "Mount ids to set as destinations"),
                 ParamSpec(name: "deliver", type: "string", required: false, default: nil,
-                          description: "Path to a .minisbak to copy to every destination"),
+                          description: "Path to a .nablabak to copy to every destination"),
             ],
             returns: "{mounts, selectedIds, eligibleCount, packagesInDestinations, delivered?}",
             example: [:]
         ),
         MethodSpec(
             name: "debug.backup.open",
-            description: "Drive the 'opened a .minisbak from Files' entry point (BackupOpenRouter.handle) and report whether the root restore sheet would present.",
+            description: "Drive the 'opened a .nablabak from Files' entry point (BackupOpenRouter.handle) and report whether the root restore sheet would present.",
             params: [
                 ParamSpec(name: "path", type: "string", required: true, default: nil,
-                          description: "Path to the .minisbak file to open"),
+                          description: "Path to the .nablabak file to open"),
             ],
             returns: "{recognisedAsPackage, handled, pendingPackage, hasPendingPackage, appIsLocked, sheetWouldPresent}",
-            example: ["path": "/…/backup-20260814-0230.minisbak"]
+            example: ["path": "/…/backup-20260814-0230.nablabak"]
         ),
         MethodSpec(
             name: "debug.backup.inspect",
-            description: "List a .minisbak package's entries and read back its manifest.",
+            description: "List a .nablabak package's entries and read back its manifest.",
             params: [
                 ParamSpec(name: "path", type: "string", required: true, default: nil,
-                          description: "Path to the .minisbak file"),
+                          description: "Path to the .nablabak file"),
             ],
             returns: "{path, entryCount, entries, manifest, lineCounts}",
-            example: ["path": "/…/backup-20260814-0230.minisbak"]
+            example: ["path": "/…/backup-20260814-0230.nablabak"]
         ),
         MethodSpec(
             name: "debug.auth.list",

@@ -16,8 +16,8 @@ import Combine
 /// agent attempt to flip the switch (off → silence, on → self-grant)
 /// returns `permission_denied`.
 @MainActor
-final class MinisConfigPermissionStore: ObservableObject {
-    static let shared = MinisConfigPermissionStore()
+final class NablaConfigPermissionStore: ObservableObject {
+    static let shared = NablaConfigPermissionStore()
 
     static let userDefaultsKey = "permissions.minisConfig.enabled"
 

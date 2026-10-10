@@ -61,7 +61,7 @@ enum FileProviderBootHealth {
     /// costs nothing, while a genuine loop is caught within three app launches.
     static let tripThreshold = 3
 
-    private static let appGroupId = "group.com.openminis.app"
+    private static let appGroupId = "group.io.github.collinsomniac.nabla"
     private static let fileName = "fp-boot-health.plist"
 
     private struct State: Codable {
@@ -79,7 +79,7 @@ enum FileProviderBootHealth {
         guard let container = FileManager.default.containerURL(
             forSecurityApplicationGroupIdentifier: appGroupId
         ) else { return nil }
-        let dir = container.appendingPathComponent("MinisConfig", isDirectory: true)
+        let dir = container.appendingPathComponent("NablaConfig", isDirectory: true)
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         return dir.appendingPathComponent(fileName)
     }
@@ -88,7 +88,7 @@ enum FileProviderBootHealth {
     /// This is NOT cross-process locking: the app writes at launch and the
     /// appex writes at boot, and the worst case of an interleave is one
     /// miscounted attempt, which the threshold already tolerates.
-    private static let queue = DispatchQueue(label: "com.openminis.app.fpBootHealth")
+    private static let queue = DispatchQueue(label: "io.github.collinsomniac.nabla.fpBootHealth")
 
     private static func loadState() -> State? {
         guard let url = fileURL, let data = try? Data(contentsOf: url) else { return nil }
