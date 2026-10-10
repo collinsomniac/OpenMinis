@@ -66,13 +66,26 @@ for rel in FILES:
     else:
         print(f"   WARNING: group '{leaf}' not found; file reference added but not grouped")
 
-    sm = re.search(r'(isa = PBXSourcesBuildPhase;.*?files = \(\n)(.*?)(\n\s*\);)', t, re.S)
+    # target the APP target's Sources phase, not the first one in the file (that belongs to
+    # MinisUITests, and a file added there is silently never compiled)
+    app = re.search(r'isa = PBXNativeTarget;.*?productType = "com.apple.product-type.application";', t, re.S)
+    sm = None
+    if app:
+        head = t.rfind("isa = PBXNativeTarget;", 0, app.start())
+        tid = re.search(r'([0-9A-F]{24}) /\* [^*]+ \*/ = \{\n\t*isa = PBXNativeTarget;', t[:head + 40][::-1])
+        phases = re.search(r'buildPhases = \((.*?)\);', t[head:app.end()], re.S)
+        if phases:
+            src = [pid for pid, nm in re.findall(r'([0-9A-F]{24}) /\* ([^*]+) \*/', phases.group(1))
+                   if nm.strip() == "Sources"]
+            if src:
+                sm = re.search(r'(' + src[0] + r' /\* Sources \*/ = \{\n\t*isa = PBXSourcesBuildPhase;.*?files = \(\n)(.*?)(\n\s*\);)',
+                               t, re.S)
     if sm:
         ind = re.search(r'\n(\s*)\S', sm.group(2))
         indent = ind.group(1) if ind else "\t\t\t\t"
         t = t[:sm.start(2)] + f"\n{indent}{bref} /* {name} in Sources */," + t[sm.start(2):]
     else:
-        print("   WARNING: no PBXSourcesBuildPhase found")
+        print("   WARNING: app target Sources phase not found; file will NOT be compiled")
     added.append(name)
 
 PBX.write_text(t)

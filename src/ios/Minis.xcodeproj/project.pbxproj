@@ -2753,8 +2753,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-
-			538F5D8236F1317DE2D59040 /* AppGroupResolver.swift in Sources */,			);
+			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		BB1000030F700000000000AA /* Sources */ = {
@@ -2790,6 +2789,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				538F5D8236F1317DE2D59040 /* AppGroupResolver.swift in Sources */,
 				AC0000202 /* ProviderCustomizationGenerated.swift in Sources */,
 				E54000AC1 /* DebugSkillGenerated.swift in Sources */,
 				E5FP00100 /* AppGroupChangeWatcher.swift in Sources */,
