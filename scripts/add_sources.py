@@ -1,19 +1,20 @@
 #!/usr/bin/env python3
-"""Register new source files in the Xcode project.
+"""Register new source files in the Xcode project (idempotent).
 
-The Minis project uses explicit PBXFileReference/PBXBuildFile entries for everything except a few
-`PBXFileSystemSynchronizedRootGroup` folders (Terminal, tests). A file created on disk but not
-registered here is simply not compiled — the first symptom is a "cannot find X in scope" error.
+The Minis project lists every source explicitly, so a file created on disk but not registered here is
+simply not compiled — and the only symptom is "cannot find X in scope".
+
+Three independent steps per file, each applied only if missing:
+  1. a PBXFileReference,
+  2. a child entry in the named group (cosmetic, for navigation),
+  3. a build-file entry in **the app target's** Sources phase  ← the one that actually compiles it.
+
+Step 3 is the subtle one: the first `PBXSourcesBuildPhase` in the file belongs to MinisUITests, so
+"the first phase" is the wrong phase. The app target is found by `productType = application` using a
+brace-balanced block scan, not a regex that can run across target boundaries.
 
 Usage:
   python3 scripts/add_sources.py <src/ios> <group> <file> [<file> ...]
-
-  e.g. python3 scripts/add_sources.py src/ios Shared Shared/AppGroupResolver.swift
-       python3 scripts/add_sources.py src/ios Providers/LocalMLX \
-              Providers/LocalMLX/LocalModelHost.swift Providers/LocalMLX/LocalMLXProvider.swift
-
-Adds each file to the app target's Sources phase and to the group whose path matches `group`
-(creating nothing else). IDs are derived from the path, so re-running is a no-op, not a duplicate.
 """
 import hashlib
 import re
@@ -23,7 +24,6 @@ from pathlib import Path
 ROOT = Path(sys.argv[1] if len(sys.argv) > 1 else "src/ios")
 GROUP = sys.argv[2] if len(sys.argv) > 2 else "Shared"
 FILES = sys.argv[3:]
-
 PBX = ROOT / "Minis.xcodeproj" / "project.pbxproj"
 
 
@@ -31,62 +31,89 @@ def uid(seed: str) -> str:
     return hashlib.sha1(seed.encode()).hexdigest()[:24].upper()
 
 
+def balanced(text: str, start: int) -> str:
+    """Substring from `start` (a '{') to its matching '}'."""
+    depth = 0
+    for i in range(start, len(text)):
+        if text[i] == "{":
+            depth += 1
+        elif text[i] == "}":
+            depth -= 1
+            if depth == 0:
+                return text[start:i + 1]
+    return text[start:]
+
+
+def app_sources_phase_id(text: str) -> str | None:
+    """The Sources build phase of the target whose productType is an application."""
+    for m in re.finditer(r"isa = PBXNativeTarget;", text):
+        block_start = text.rfind("{", 0, m.start())
+        block = balanced(text, block_start)
+        if 'productType = "com.apple.product-type.application"' not in block:
+            continue
+        phases = re.search(r"buildPhases = \((.*?)\);", block, re.S)
+        if not phases:
+            continue
+        # ids here are mixed: full 24-char uuids (AA8A56872F6FBB7A00A3E54E) and short readable ones
+        # (E51000041). Matching only {24} silently skipped the app target's own Sources phase.
+        for pid, name in re.findall(r"([0-9A-F]{8,24}) /\* ([^*]+) \*/", phases.group(1)):
+            if name.strip() == "Sources":
+                return pid
+    return None
+
+
 t = PBX.read_text()
 
-
-def section(name: str) -> int:
-    return t.index(f"/* Begin {name} section */")
-
+phase_id = app_sources_phase_id(t)
+print(f"app target Sources phase: {phase_id}")
 
 added = []
 for rel in FILES:
     rel = rel.replace("\\", "/")
     name = rel.split("/")[-1]
-    if f"path = {name};" in t and f"/* {name} */ = {{isa = PBXFileReference" in t:
-        print(f"   already registered: {name}")
-        continue
     fref, bref = uid("fref:" + rel), uid("bref:" + rel)
     ext = rel.rsplit(".", 1)[-1]
     ftype = {"swift": "sourcecode.swift", "m": "sourcecode.c.objc", "h": "sourcecode.c.h",
              "plist": "text.plist.xml", "entitlements": "text.plist.entitlements"}.get(ext, "text")
+    did = []
 
-    s = section("PBXBuildFile")
-    t = t[:s] + (f'\t\t{bref} /* {name} in Sources */ = {{isa = PBXBuildFile; '
-                 f'fileRef = {fref} /* {name} */; }};\n') + t[s:]
-    s = section("PBXFileReference")
-    t = t[:s] + (f'\t\t{fref} /* {name} */ = {{isa = PBXFileReference; lastKnownFileType = {ftype}; '
-                 f'path = {name}; sourceTree = "<group>"; }};\n') + t[s:]
+    # 1. file reference
+    if f"path = {name};" not in t:
+        s = t.index("/* Begin PBXFileReference section */")
+        t = t[:s] + (f'\t\t{fref} /* {name} */ = {{isa = PBXFileReference; lastKnownFileType = {ftype}; '
+                     f'path = {name}; sourceTree = "<group>"; }};\n') + t[s:]
+        did.append("fileRef")
 
+    # 2. build file (the definition the phase refers to)
+    if f"{bref} /* {name} in Sources */ = {{isa = PBXBuildFile" not in t:
+        s = t.index("/* Begin PBXBuildFile section */")
+        t = t[:s] + (f'\t\t{bref} /* {name} in Sources */ = {{isa = PBXBuildFile; '
+                     f'fileRef = {fref} /* {name} */; }};\n') + t[s:]
+        did.append("buildFile")
+
+    # 3. the app target's Sources phase
+    if phase_id and f"{bref} /* {name} in Sources */," not in t:
+        m = re.search(re.escape(phase_id) + r' /\* Sources \*/ = \{\n\t*isa = PBXSourcesBuildPhase;.*?files = \(\n', t, re.S)
+        if m:
+            t = t[:m.end()] + f'\t\t\t\t{bref} /* {name} in Sources */,\n' + t[m.end():]
+            did.append("phase")
+
+    # 4. group child (navigation only)
     leaf = GROUP.split("/")[-1]
     gm = re.search(rf'/\* {re.escape(leaf)} \*/ = \{{\n(\s*)isa = PBXGroup;.*?\n\s*children = \(\n(.*?)\n(\s*)\);',
                    t, re.S)
-    if gm:
+    if gm and f"{fref} /* {name} */," not in t:
         indent = gm.group(1) + "\t"
         t = t[:gm.start(2)] + f"\n{indent}{fref} /* {name} */," + t[gm.start(2):]
-    else:
-        print(f"   WARNING: group '{leaf}' not found; file reference added but not grouped")
+        did.append("group")
 
-    # target the APP target's Sources phase, not the first one in the file (that belongs to
-    # MinisUITests, and a file added there is silently never compiled)
-    app = re.search(r'isa = PBXNativeTarget;.*?productType = "com.apple.product-type.application";', t, re.S)
-    sm = None
-    if app:
-        head = t.rfind("isa = PBXNativeTarget;", 0, app.start())
-        tid = re.search(r'([0-9A-F]{24}) /\* [^*]+ \*/ = \{\n\t*isa = PBXNativeTarget;', t[:head + 40][::-1])
-        phases = re.search(r'buildPhases = \((.*?)\);', t[head:app.end()], re.S)
-        if phases:
-            src = [pid for pid, nm in re.findall(r'([0-9A-F]{24}) /\* ([^*]+) \*/', phases.group(1))
-                   if nm.strip() == "Sources"]
-            if src:
-                sm = re.search(r'(' + src[0] + r' /\* Sources \*/ = \{\n\t*isa = PBXSourcesBuildPhase;.*?files = \(\n)(.*?)(\n\s*\);)',
-                               t, re.S)
-    if sm:
-        ind = re.search(r'\n(\s*)\S', sm.group(2))
-        indent = ind.group(1) if ind else "\t\t\t\t"
-        t = t[:sm.start(2)] + f"\n{indent}{bref} /* {name} in Sources */," + t[sm.start(2):]
-    else:
-        print("   WARNING: app target Sources phase not found; file will NOT be compiled")
+    print(f"   {name}: {', '.join(did) if did else 'already complete'}")
     added.append(name)
 
 PBX.write_text(t)
-print(f"registered {len(added)} file(s) in group '{GROUP}': {added}")
+print(f"done: {added}")
+
+# verify
+t2 = PBX.read_text()
+ok = all(f"{uid('bref:' + f.replace(chr(92), '/'))} /* {f.split('/')[-1]} in Sources */," in t2 for f in FILES)
+print("all files in the app Sources phase:", ok)

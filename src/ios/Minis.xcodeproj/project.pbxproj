@@ -7,6 +7,7 @@
 	objects = {
 
 		538F5D8236F1317DE2D59040 /* AppGroupResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = C92EA6D159071E94AA876074 /* AppGroupResolver.swift */; };
+		15CC9DF24F3124F4672D16C7 /* LocalInferenceSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6ABCB9D16E6EB9576BD997B6 /* LocalInferenceSettingsView.swift */; };
 /* Begin PBXBuildFile section */
 		21FED4B7BB6F6D9476C9992E /* VoiceProvider+System.swift in Sources */ = {isa = PBXBuildFile; fileRef = 88993FC8E3F0199C6638F664 /* VoiceProvider+System.swift */; };
 		241D530017827D7F0EB604DE /* VoiceProviderFactory.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2941B643B8A2F048A2B154E /* VoiceProviderFactory.swift */; };
@@ -637,6 +638,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 		C92EA6D159071E94AA876074 /* AppGroupResolver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppGroupResolver.swift; sourceTree = "<group>"; };
+		6ABCB9D16E6EB9576BD997B6 /* LocalInferenceSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalInferenceSettingsView.swift; sourceTree = "<group>"; };
 /* Begin PBXFileReference section */
 		0ED149397BEA7E0408C92688 /* GroupVoiceModelsView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = GroupVoiceModelsView.swift; sourceTree = "<group>"; };
 		0F5379380323FA8C6477708C /* GroupSlotPicker.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = GroupSlotPicker.swift; sourceTree = "<group>"; };
@@ -2317,7 +2319,8 @@
 		F1V00011 /* Settings */ = {
 			isa = PBXGroup;
 			children = (
-				AA0838A12F3B941A00049557 /* AboutView.swift */,
+
+				6ABCB9D16E6EB9576BD997B6 /* LocalInferenceSettingsView.swift */,				AA0838A12F3B941A00049557 /* AboutView.swift */,
 				E5S000014 /* CloudSyncSettingsView.swift */,
 				E5G000013 /* EnhancedBackgroundSettingsView.swift */,
 				E5P000012 /* EnvironmentVariablesView.swift */,
@@ -2789,6 +2792,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				15CC9DF24F3124F4672D16C7 /* LocalInferenceSettingsView.swift in Sources */,
 				538F5D8236F1317DE2D59040 /* AppGroupResolver.swift in Sources */,
 				AC0000202 /* ProviderCustomizationGenerated.swift in Sources */,
 				E54000AC1 /* DebugSkillGenerated.swift in Sources */,

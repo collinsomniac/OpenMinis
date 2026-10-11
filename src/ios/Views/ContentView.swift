@@ -8098,6 +8098,8 @@ private enum SettingsDestination: Hashable {
     case skills
     // [T-ios-assistant-header-open-soul]
     case soul
+    // [T-nabla-local-inference] On-device engines and their model library.
+    case localInference
     // [T-tools-master-switch]
     case tools
     case memory
@@ -8135,6 +8137,12 @@ private struct SettingsSheet: View {
                         } else {
                             Label("Manage Providers", systemImage: "lock.circle.fill")
                         }
+                    }
+
+                    NavigationLink {
+                        LocalInferenceSettingsView()
+                    } label: {
+                        Label("Local Inference", systemImage: "cpu.fill")
                     }
 
                     NavigationLink {
@@ -8467,6 +8475,8 @@ private struct SettingsSheet: View {
                     ProviderInstancesView()
                 case .providerDetail(let id):
                     ProviderInstanceDetailView(instanceId: id)
+                case .localInference:
+                    LocalInferenceSettingsView()
                 case .modelGroups:
                     ModelGroupsView()
                 case .modelGroupDetail(let id):
