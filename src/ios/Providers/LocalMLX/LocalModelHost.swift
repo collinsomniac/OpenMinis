@@ -45,7 +45,8 @@ struct LocalModelInfo: Sendable, Hashable {
 }
 
 enum LocalModelStore {
-    static var root: URL {
+    /// Where the library lives when the user has not chosen somewhere else.
+    static var defaultRoot: URL {
         let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
         var r = docs.appendingPathComponent("Models", isDirectory: true)
         try? FileManager.default.createDirectory(at: r, withIntermediateDirectories: true)
@@ -54,6 +55,47 @@ enum LocalModelStore {
         var v = URLResourceValues(); v.isExcludedFromBackup = true
         try? r.setResourceValues(v)
         return r
+    }
+
+    /// [T-nabla-local-mlx-folder] The library folder, which the user can point anywhere the Files app
+    /// can reach — iCloud Drive, an external drive, a network share — so models are not locked inside
+    /// this app's container and do not have to be downloaded twice to be used by two apps.
+    ///
+    /// The choice is persisted as a **security-scoped bookmark**, which is the only form of reference
+    /// to an outside folder that survives relaunch on iOS. Access is claimed on each lookup; the claim
+    /// is what the picker granted, and it has to be re-asserted when the app is relaunched.
+    static let folderBookmarkKey = "nabla.onDeviceModelsFolder"
+
+    static var isUsingCustomFolder: Bool {
+        UserDefaults.standard.data(forKey: folderBookmarkKey) != nil
+    }
+
+    static var root: URL {
+        guard let data = UserDefaults.standard.data(forKey: folderBookmarkKey) else {
+            return defaultRoot
+        }
+        var stale = false
+        guard let url = try? URL(resolvingBookmarkData: data, options: [], relativeTo: nil,
+                                 bookmarkDataIsStale: &stale) else {
+            // The folder was deleted or the bookmark invalidated (e.g. the app was restored from a
+            // backup). Fall back rather than presenting an unusable library.
+            useDefaultRoot()
+            return defaultRoot
+        }
+        _ = url.startAccessingSecurityScopedResource()
+        return url
+    }
+
+    /// Point the library at `url` (from the Files folder picker).
+    static func setRoot(_ url: URL) throws {
+        let scoped = url.startAccessingSecurityScopedResource()
+        let data = try url.bookmarkData(options: [], includingResourceValuesForKeys: nil, relativeTo: nil)
+        UserDefaults.standard.set(data, forKey: folderBookmarkKey)
+        if !scoped { /* the picker grants access without this returning true for some providers */ }
+    }
+
+    static func useDefaultRoot() {
+        UserDefaults.standard.removeObject(forKey: folderBookmarkKey)
     }
 
     static func dir(for id: String) -> URL {
@@ -92,26 +134,67 @@ enum LocalModelStore {
 
     /// Move a downloaded snapshot into the library.
     ///
-    /// A hub download lands in the MLX hub cache, deep inside the container and invisible to the user.
-    /// Adopting it into `Documents/Models` is what makes a model *manageable*: it appears in the
-    /// Local Inference settings page, in Files › On My iPhone › Nabla, and can be copied to another
-    /// device or deleted. Cross-volume moves fall back to copy-then-remove.
+    /// [T-nabla-local-mlx-symlinks] The Hugging Face hub cache does **not** store real files in the
+    /// snapshot directory — it stores symlinks into a sibling `blobs/` directory:
+    ///
+    ///     models--org--name/blobs/<sha>                    <- the actual bytes
+    ///     models--org--name/snapshots/<revision>/foo.bin   <- symlink -> ../../blobs/<sha>
+    ///
+    /// So moving the snapshot directory with a single `moveItem` keeps the symlinks but leaves the
+    /// blobs behind, and every file dangles. That is not a hypothetical: it is exactly how the first
+    /// download attempt failed, with the loader reporting `config.json` missing in the adopted folder
+    /// (NSFileReadNoSuchFileError) for a model that had downloaded perfectly well.
+    ///
+    /// The fix walks the tree and moves each *resolved* file, so what lands in the library is real
+    /// bytes. Copied from LoopLab's `ModelStore.adopt`, which is known good on this device.
     @discardableResult
     static func adopt(from src: URL, id: String) throws -> URL {
-        let dst = dir(for: id)
         let fm = FileManager.default
-        try? fm.removeItem(at: dst)
-        try fm.createDirectory(at: dst.deletingLastPathComponent(), withIntermediateDirectories: true)
-        do { try fm.moveItem(at: src, to: dst) }
-        catch {
-            try fm.copyItem(at: src, to: dst)
-            try? fm.removeItem(at: src)
+        let dest = dir(for: id)
+        // A previous interrupted adopt must not leave a half-written model behind.
+        try? fm.removeItem(at: dest)
+        try fm.createDirectory(at: dest, withIntermediateDirectories: true)
+        let srcPath = src.standardizedFileURL.path
+        guard let e = fm.enumerator(at: src, includingPropertiesForKeys: [.isDirectoryKey]) else {
+            throw LocalModelError.unreadable(src)
         }
-        // The repo id a folder name cannot express ("/" is escaped as "__"), recorded so the library
-        // can report the real id back to the engine and the picker.
-        let marker = try JSONSerialization.data(withJSONObject: ["id": id], options: [.prettyPrinted])
-        try marker.write(to: dst.appendingPathComponent(".looplab.json"))
-        return dst
+        var moved = 0
+        for case let u as URL in e {
+            if (try? u.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true { continue }
+            let rel = String(u.standardizedFileURL.path.dropFirst(srcPath.count))
+                .trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+            guard !rel.isEmpty else { continue }
+            let target = dest.appendingPathComponent(rel)
+            try? fm.createDirectory(at: target.deletingLastPathComponent(), withIntermediateDirectories: true)
+            if fm.fileExists(atPath: target.path) { try? fm.removeItem(at: target) }
+            let real = u.resolvingSymlinksInPath()          // <-- materialise the blob
+            do { try fm.moveItem(at: real, to: target) }
+            catch { try fm.copyItem(at: real, to: target) }
+            moved += 1
+        }
+        guard moved > 0 else { throw LocalModelError.unreadable(src) }
+        // Remove the Hub cache repo directory the snapshot lived in, now that its files are moved.
+        var p = src
+        for _ in 0..<4 {
+            if p.lastPathComponent.hasPrefix("models--") { try? fm.removeItem(at: p); break }
+            p = p.deletingLastPathComponent()
+        }
+        guard isModelDir(dest) else { throw LocalModelError.incomplete(dest) }
+        let marker = try JSONSerialization.data(
+            withJSONObject: ["id": id, "source": "huggingface",
+                             "adopted": ISO8601DateFormatter().string(from: Date())],
+            options: [.prettyPrinted])
+        try? marker.write(to: dest.appendingPathComponent(".looplab.json"))
+        return dest
+    }
+
+    /// Delete a model from the library. Needed because a partial or unreadable download otherwise
+    /// stays forever and cannot be cleared from the UI.
+    static func remove(_ id: String) throws {
+        let d = dir(for: id)
+        if FileManager.default.fileExists(atPath: d.path) {
+            try FileManager.default.removeItem(at: d)
+        }
     }
 
     /// Some checkpoints declare a tokenizer class the Swift loader does not know while being plain
@@ -261,6 +344,22 @@ actor LocalModelHost {
     func status() -> LocalHostStatus {
         LocalHostStatus(modelId: modelId, resident: container != nil,
                         cacheLimitMB: Memory.cacheLimit / (1024 * 1024))
+    }
+}
+
+/// Failures the library itself can describe, so the settings page can say what actually went wrong
+/// instead of surfacing a raw Cocoa error from deep inside the loader.
+enum LocalModelError: LocalizedError {
+    case unreadable(URL)
+    case incomplete(URL)
+
+    var errorDescription: String? {
+        switch self {
+        case .unreadable(let u):
+            return "Nothing could be read from the downloaded model at \(u.path)."
+        case .incomplete(let u):
+            return "The download at \(u.path) is incomplete — no config.json with weights beside it. Delete it and try again."
+        }
     }
 }
 

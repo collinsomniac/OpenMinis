@@ -10,6 +10,7 @@
 		15CC9DF24F3124F4672D16C7 /* LocalInferenceSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6ABCB9D16E6EB9576BD997B6 /* LocalInferenceSettingsView.swift */; };
 		563D64272C8143C372BFF654 /* LocalModelHost.swift in Sources */ = {isa = PBXBuildFile; fileRef = 905EFCE0D44B84CFAC1FEF5C /* LocalModelHost.swift */; };
 		D93AAA59B349B7286431753C /* LocalMLXProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1A1415E8048456C19CA4C63 /* LocalMLXProvider.swift */; };
+		F50F3EC39B1B20C52FE81C6A /* LocalModelCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5552AEC9DAC8CA7B2B96E44 /* LocalModelCatalog.swift */; };
 /* Begin PBXBuildFile section */
 		E7A4A01A7F94D56F04805C61 /* Tokenizers in Frameworks */ = {isa = PBXBuildFile; productRef = E7A85954FB16317F4AEC5C85 /* Tokenizers */; };
 		E7ACF4C712D44562426C275D /* HuggingFace in Frameworks */ = {isa = PBXBuildFile; productRef = E7AB10975F348A4FCC535119 /* HuggingFace */; };
@@ -649,6 +650,7 @@
 		6ABCB9D16E6EB9576BD997B6 /* LocalInferenceSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalInferenceSettingsView.swift; sourceTree = "<group>"; };
 		905EFCE0D44B84CFAC1FEF5C /* LocalModelHost.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalMLX/LocalModelHost.swift; sourceTree = "<group>"; };
 		F1A1415E8048456C19CA4C63 /* LocalMLXProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalMLX/LocalMLXProvider.swift; sourceTree = "<group>"; };
+		F5552AEC9DAC8CA7B2B96E44 /* LocalModelCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalMLX/LocalModelCatalog.swift; sourceTree = "<group>"; };
 /* Begin PBXFileReference section */
 		0ED149397BEA7E0408C92688 /* GroupVoiceModelsView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = GroupVoiceModelsView.swift; sourceTree = "<group>"; };
 		0F5379380323FA8C6477708C /* GroupSlotPicker.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = GroupSlotPicker.swift; sourceTree = "<group>"; };
@@ -1589,6 +1591,7 @@
 		E52000030 /* Providers */ = {
 			isa = PBXGroup;
 			children = (
+				F5552AEC9DAC8CA7B2B96E44 /* LocalModelCatalog.swift */,
 				F1A1415E8048456C19CA4C63 /* LocalMLXProvider.swift */,
 				905EFCE0D44B84CFAC1FEF5C /* LocalModelHost.swift */,
 				E52000011 /* LLMTypes.swift */,
@@ -2820,6 +2823,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				F50F3EC39B1B20C52FE81C6A /* LocalModelCatalog.swift in Sources */,
 				D93AAA59B349B7286431753C /* LocalMLXProvider.swift in Sources */,
 				563D64272C8143C372BFF654 /* LocalModelHost.swift in Sources */,
 				15CC9DF24F3124F4672D16C7 /* LocalInferenceSettingsView.swift in Sources */,
