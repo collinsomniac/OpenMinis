@@ -36,7 +36,7 @@ final class LocalInferenceModel: ObservableObject {
     @Published var memoryEntitlementGranted = false
     @Published var thermalState: String = "?"
     @Published var gpuName: String = "?"
-    @Published var gpuWorkingSetBytes: Int = 0
+    @Published var gpuWorkingSetBytes: UInt64 = 0
     @Published var appleIntelligenceStatus: String = "unknown"
     @Published var isScanning = false
 
@@ -243,7 +243,7 @@ struct LocalInferenceSettingsView: View {
                     Text(model.gpuName).font(.callout)
                 }
                 LabeledContent(AppLocalized("GPU working set")) {
-                    Text(model.format(Int64(model.gpuWorkingSetBytes))).font(.callout.monospaced())
+                    Text(model.format(Int64(clamping: model.gpuWorkingSetBytes))).font(.callout.monospaced())
                 }
                 LabeledContent(AppLocalized("Thermal state")) {
                     Text(model.thermalState)
