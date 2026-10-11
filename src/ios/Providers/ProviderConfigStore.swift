@@ -838,9 +838,9 @@ final class ProviderConfigStore: ObservableObject {
             if instance.providerType == .openAI {
                 builtIn = ModelsDevAPI.enrichModels(LLMModel.allOpenAICodexOAuth)
             } else if instance.providerType == .openRouter {
-                builtIn = ModelsDevAPI.enrichModels(builtInModels(for: instance))
+                builtIn = ModelsDevAPI.enrichModels(Self.builtInModels(for: instance))
             } else {
-                builtIn = ModelsDevAPI.enrichModels(builtInModels(for: instance))
+                builtIn = ModelsDevAPI.enrichModels(Self.builtInModels(for: instance))
             }
             let entries = builtIn.map { model in
                 ModelEntry(providerInstanceId: instance.id, model: model)
@@ -1115,7 +1115,7 @@ final class ProviderConfigStore: ObservableObject {
     /// whatever is actually on disk in Documents/Models — rather than a provider type's static list,
     /// so the picker offers exactly the models that can run. Every other instance keeps the static
     /// list for its type.
-    func builtInModels(for instance: ProviderInstance) -> [LLMModel] {
+    static func builtInModels(for instance: ProviderInstance) -> [LLMModel] {
         if LocalMLXProvider.ownsProviderId(instance.id) { return LLMModel.allLocalMLX }
         return instance.providerType.builtInModels
     }
@@ -3168,7 +3168,7 @@ final class ProviderConfigStore: ObservableObject {
                 throw ModelRefreshError.modelsDevNoMatch(warnings: warnings)
             }
             // Fall back to built-in models
-            let builtIn = ModelsDevAPI.enrichModels(builtInModels(for: instance))
+            let builtIn = ModelsDevAPI.enrichModels(Self.builtInModels(for: instance))
             if !builtIn.isEmpty {
                 logger.info("Using \(builtIn.count) built-in models for \(instance.label)")
                 return ModelFetchResult(models: builtIn, source: "built-in", warnings: warnings)
@@ -3191,7 +3191,7 @@ final class ProviderConfigStore: ObservableObject {
             logger.info("Third-party endpoint, skipping built-in fallback for \(instance.label)")
             throw ModelRefreshError.modelsDevNoMatch(warnings: warnings)
         }
-        let builtIn = ModelsDevAPI.enrichModels(builtInModels(for: instance))
+        let builtIn = ModelsDevAPI.enrichModels(Self.builtInModels(for: instance))
         if !builtIn.isEmpty {
             logger.info("Using \(builtIn.count) built-in models for \(instance.label)")
             return ModelFetchResult(models: builtIn, source: "built-in", warnings: warnings)

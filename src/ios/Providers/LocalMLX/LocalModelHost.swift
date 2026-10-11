@@ -13,6 +13,12 @@ import Tokenizers
 // only prefills tokens it has not seen — the agent loop re-sends the whole transcript every turn, so
 // without this each turn re-reads everything.
 //
+// [T-nabla-local-mlx-shadowing] `ChatSession` is **module-qualified everywhere in this file**. The app
+// declares its own `ChatSession` (Agent/Chat/ChatStore.swift:42, the chat-session *record*, Codable),
+// and a same-module declaration shadows an imported one, so an unqualified `ChatSession` resolves to
+// that struct — which produced "extra arguments in call" (the compiler fell back to `init(from:
+// Decoder)`) and "has no member 'streamDetails'". Qualifying is required, not stylistic.
+//
 // [T-nabla-local-mlx-cache] Cache policy, after ninfer's typed resume points and Strata's
 // message-boundary cache — **restricted to what mlx-swift-lm 3.32.3 actually offers**. The first draft
 // of this file called `ChatSession.fork(...)`, which does not exist in 3.32.3 (nor in our fork); a
@@ -41,8 +47,10 @@ struct LocalModelInfo: Sendable, Hashable {
 enum LocalModelStore {
     static var root: URL {
         let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
-        let r = docs.appendingPathComponent("Models", isDirectory: true)
+        var r = docs.appendingPathComponent("Models", isDirectory: true)
         try? FileManager.default.createDirectory(at: r, withIntermediateDirectories: true)
+        // [T-nabla-local-mlx-backup] Excluded from iCloud backup: multi-GB model weights must not be
+        // uploaded by the user's backup. Needs a var — setResourceValues is mutating.
         var v = URLResourceValues(); v.isExcludedFromBackup = true
         try? r.setResourceValues(v)
         return r
@@ -129,7 +137,7 @@ actor LocalModelHost {
 
     private(set) var modelId: String?
     private var container: ModelContainer?
-    private var session: ChatSession?
+    private var session: MLXLMCommon.ChatSession?
     private var sessionKey: String?
     /// The transcript the live session has already consumed, *including* the reply it generated.
     private var consumed: [(role: String, text: String)] = []
@@ -171,18 +179,18 @@ actor LocalModelHost {
 
         let prior = Array(history.dropLast())
         let last = history.last ?? (role: "user", text: "")
-        let lastMessage: Chat.Message = last.role == "assistant" ? .assistant(last.text) : .user(last.text)
+        let lastMessage: MLXLMCommon.Chat.Message = last.role == "assistant" ? .assistant(last.text) : .user(last.text)
 
         // Reuse the live session only when this request continues exactly the conversation it holds.
         let reuse = session != nil && sessionKey == key && Self.sameTranscript(consumed, prior)
         if sessionKey != key { session = nil; consumed = [] }
 
-        let s: ChatSession
+        let s: MLXLMCommon.ChatSession
         let source: String
         if reuse, let live = session {
             s = live; source = "reused"
         } else {
-            s = ChatSession(c, instructions: system,
+            s = MLXLMCommon.ChatSession(c, instructions: system,
                             history: prior.map { $0.role == "assistant" ? .assistant($0.text) : .user($0.text) },
                             generateParameters: params,
                             additionalContext: ["enable_thinking": thinking])

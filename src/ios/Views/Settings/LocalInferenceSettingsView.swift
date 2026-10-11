@@ -230,16 +230,16 @@ struct LocalInferenceSettingsView: View {
             Section(AppLocalized("Engines")) {
                 LabeledContent(AppLocalized("On-device (MLX)")) {
                     if let r = model.residentModel {
-                        Text(AppLocalized("running ") + r.split(separator: "/").last!)
+                        Text(AppLocalized("running ") + String(r.split(separator: "/").last ?? ""))
                             .foregroundStyle(.green)
                     } else {
                         Text(model.models.isEmpty ? AppLocalized("no models") : AppLocalized("ready"))
-                            .foregroundStyle(model.models.isEmpty ? .secondary : .green)
+                            .foregroundStyle(model.models.isEmpty ? Color.secondary : Color.green)
                     }
                 }
                 LabeledContent(AppLocalized("Apple Intelligence")) {
                     Text(model.appleIntelligenceStatus)
-                        .foregroundStyle(model.appleIntelligenceStatus == "available" ? .green : .secondary)
+                        .foregroundStyle(model.appleIntelligenceStatus == "available" ? Color.green : Color.secondary)
                 }
             }
 
@@ -251,7 +251,7 @@ struct LocalInferenceSettingsView: View {
                     Text(model.memoryEntitlementGranted
                          ? AppLocalized("granted")
                          : AppLocalized("not granted — expect ~3.3 GB"))
-                        .foregroundStyle(model.memoryEntitlementGranted ? .green : .orange)
+                        .foregroundStyle(model.memoryEntitlementGranted ? Color.green : Color.orange)
                 }
                 LabeledContent(AppLocalized("GPU")) {
                     Text(model.gpuName).font(.callout)
@@ -261,7 +261,7 @@ struct LocalInferenceSettingsView: View {
                 }
                 LabeledContent(AppLocalized("Thermal state")) {
                     Text(model.thermalState)
-                        .foregroundStyle(model.thermalState == "nominal" ? .green : .orange)
+                        .foregroundStyle(model.thermalState == "nominal" ? Color.green : Color.orange)
                 }
             }
 
