@@ -65,7 +65,7 @@ actor LocalModelHost {
     private var sessionKey: String?
     /// The transcript the live session has already consumed, *including* the reply it generated.
     private var consumed: [(role: String, text: String, images: Int)] = []
-    private var activeTask: Task<Void, Never>?
+    private var activeTask: Task<Void, Error>?
 
     // MARK: Residency
 
