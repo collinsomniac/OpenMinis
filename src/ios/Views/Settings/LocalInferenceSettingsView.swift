@@ -32,7 +32,7 @@ struct LocalModelRecord: Identifiable, Hashable {
 final class LocalInferenceModel: ObservableObject {
     @Published var models: [LocalModelRecord] = []
     @Published var libraryPath: String = ""
-    @Published var availableMemoryBytes: UInt64 = 0
+    @Published var availableMemoryBytes: Int = 0
     @Published var memoryEntitlementGranted = false
     @Published var thermalState: String = "?"
     @Published var gpuName: String = "?"
@@ -129,7 +129,7 @@ final class LocalInferenceModel: ObservableObject {
 
     /// Memory this process may actually use. The entitlement increases it from ~3.25 GB to ~6 GB on
     /// an iPhone 17 Pro Max, which measured as a ~3x decode-speed difference (see FINDINGS-R3).
-    nonisolated static func availableMemory() -> UInt64 { os_proc_available_memory() }
+    nonisolated static func availableMemory() -> Int { os_proc_available_memory() }
 
     /// Whether the signed build carries `com.apple.developer.kernel.increased-memory-limit`.
     /// Read from the embedded provisioning profile, not assumed: the value depends on what the
