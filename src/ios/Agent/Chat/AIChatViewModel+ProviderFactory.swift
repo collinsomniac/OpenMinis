@@ -102,10 +102,6 @@ extension AIChatViewModel {
             }
             return LLMProviderFactory.applyModelOverrides(p, entry: entry)
         }
-        // [T-nabla-local-mlx-sentinel] Built-in on-device engine — see LLMProviderFactory.
-        if LocalMLXProvider.ownsProviderId(instance.id) {
-            return LocalMLXAgentProvider(model: entry.model)
-        }
         switch instance.providerType {
         case .anthropic:
             return AnthropicAgentProvider(provider: LLMProviderFactory.makeAnthropicProvider(instance: instance, model: entry.model))
@@ -135,6 +131,8 @@ extension AIChatViewModel {
             // warning in the one place they cannot do anything about it.
             return OpenAIAgentProvider(
                 provider: LLMProviderFactory.makeCopilotProvider(instance: instance, model: entry.model))
+        case .localMLX:
+            return LocalMLXAgentProvider(model: entry.model)
         case .unsupported:
             logger.error("\(instance.providerType) has no agent provider; returning placeholder")
             return AnthropicAgentProvider(provider: AnthropicProvider(apiKey: "", model: entry.model))
@@ -346,6 +344,8 @@ extension AIChatViewModel {
                 provider.appendV1Suffix = kimiAppendV1
                 return provider
             }
+        case .localMLX:
+            return LocalMLXProvider(model: entry.model)
         case .unsupported:
             throw LLMProviderError.noCredentials
         }

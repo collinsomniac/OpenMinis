@@ -212,6 +212,27 @@ struct ProviderInstanceDetailView: View {
                     .onChange(of: editingLabel) { _ in saveLabel(instance) }
             }
 
+            if instance.providerType == .localMLX {
+                // [T-nabla-local-mlx-provider] No credential and no endpoint. In their place: where
+                // the models come from, and a one-tap re-read of the library. The model list below
+                // is the same list every provider shows, with the same show/hide controls.
+                Section {
+                    NavigationLink {
+                        LocalInferenceSettingsView()
+                    } label: {
+                        Label(AppLocalized("Model library"), systemImage: "cpu")
+                    }
+                    Button {
+                        Task { await store.refreshModels(for: instance) }
+                    } label: {
+                        Label(AppLocalized("Reload models from library"), systemImage: "arrow.clockwise")
+                    }
+                } header: {
+                    Text(AppLocalized("On this device"))
+                } footer: {
+                    Text(AppLocalized("Models are read from the library folder. Download, delete, or move the folder in Model library; the list below follows it."))
+                }
+            } else {
             // MARK: Credential
             Section {
                 credentialSection(instance)
@@ -225,6 +246,7 @@ struct ProviderInstanceDetailView: View {
 
             // MARK: Custom Base URL
             customBaseURLSection(instance)
+            }
 
             // [T-mimo-shadow-voice] These LLM-config fields are gated by their own
             // providerType/capability checks (supportsCustomUserAgent, API-format
@@ -629,6 +651,7 @@ struct ProviderInstanceDetailView: View {
         case .xAI: return "https://api.x.ai/v1"
         case .kimiCode: return "https://api.kimi.com/coding"
         case .githubCopilot: return CopilotConstants.apiBaseURL
+        case .localMLX: return AppLocalized("On this device")
         case .unsupported: return "—"
         }
     }
@@ -1006,6 +1029,7 @@ struct ProviderInstanceDetailView: View {
         case .xAI: return XAIOAuthManager.shared.isAuthenticated(instanceId: instance.id)
         case .kimiCode: return KimiOAuthManager.shared.isAuthenticated(instanceId: instance.id)
         case .githubCopilot: return CopilotOAuthManager.shared.isAuthenticated(instanceId: instance.id)
+        case .localMLX: return false
         case .unsupported: return false // synced from newer build
         }
     }
@@ -1070,6 +1094,8 @@ struct ProviderInstanceDetailView: View {
         case .githubCopilot:
             return CopilotOAuthManager.shared.isAuthenticated(instanceId: instance.id)
                 ? AppLocalized("Authenticated") : AppLocalized("Not authenticated")
+        case .localMLX:
+            return AppLocalized("No sign-in needed")
         case .unsupported:
             return AppLocalized("Unsupported in this app version")
         }
@@ -1086,6 +1112,7 @@ struct ProviderInstanceDetailView: View {
         case .xAI: return AppLocalized("Sign in with xAI")
         case .kimiCode: return AppLocalized("Sign in with Kimi Code")
         case .githubCopilot: return AppLocalized("Sign in with GitHub")
+        case .localMLX: return AppLocalized("Sign In")
         case .unsupported: return AppLocalized("Sign In")
         }
     }
@@ -1102,6 +1129,7 @@ struct ProviderInstanceDetailView: View {
             case .xAI: try await XAIOAuthManager.shared.login(instanceId: instance.id)
             case .kimiCode: break // device-code flow runs in KimiDeviceLoginSheet
             case .githubCopilot: break // device-code flow runs in CopilotDeviceLoginSheet
+            case .localMLX: break
             case .unsupported: break
             }
             // [T-provider-oauth-model-discovery] Reconcile models on a
@@ -1140,6 +1168,7 @@ struct ProviderInstanceDetailView: View {
         case .xAI: XAIOAuthManager.shared.logout(instanceId: instance.id)
         case .kimiCode: KimiOAuthManager.shared.logout(instanceId: instance.id)
         case .githubCopilot: CopilotOAuthManager.shared.logout(instanceId: instance.id)
+        case .localMLX: break
         case .unsupported: break
         }
     }
@@ -1165,7 +1194,7 @@ struct ProviderInstanceDetailView: View {
             token = try? await KimiOAuthManager.shared.validAccessToken(instanceId: instance.id)
         case .githubCopilot:
             token = try? await CopilotOAuthManager.shared.validSessionToken(instanceId: instance.id)
-        case .unsupported:
+        case .localMLX, .unsupported:
             token = nil
         }
         guard let token, !token.isEmpty else { return }
@@ -1185,6 +1214,7 @@ struct ProviderInstanceDetailView: View {
         case .antigravity: return "API Key..."
         case .openRouter: return "sk-or-..."
         case .openAIResponses: return "sk-..."
+        case .localMLX: return ""
         case .unsupported: return ""
         }
     }

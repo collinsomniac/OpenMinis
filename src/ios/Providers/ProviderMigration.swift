@@ -91,6 +91,9 @@ enum ProviderMigration {
             case .githubCopilot:
                 // [T-copilot-provider] Also new — never had a singleton token.
                 break
+            case .localMLX:
+                // [T-nabla-local-mlx-provider] New, keyless — nothing to migrate.
+                break
             case .unsupported:
                 break
             }

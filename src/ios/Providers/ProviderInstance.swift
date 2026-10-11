@@ -149,7 +149,7 @@ struct ProviderInstance: Identifiable, Codable, Hashable {
         // [T-copilot-provider] Copilot's User-Agent is part of the protocol —
         // the API rejects requests that do not look like the editor plugin — so
         // it must not be user-overridable the way a proxy's UA is.
-        case .gemini, .antigravity, .githubCopilot, .unsupported:
+        case .gemini, .antigravity, .githubCopilot, .localMLX, .unsupported:
             return false
         }
     }
@@ -186,7 +186,7 @@ struct ProviderInstance: Identifiable, Codable, Hashable {
         switch providerType {
         case .openAI, .openAIResponses, .openRouter, .xAI, .kimiCode, .githubCopilot:
             return OpenCodeChannel.looksLikeOpenCodeBaseURL(effectiveCustomBaseURL)
-        case .anthropic, .gemini, .antigravity, .unsupported:
+        case .anthropic, .gemini, .antigravity, .localMLX, .unsupported:
             return false
         }
     }
@@ -258,6 +258,9 @@ struct ProviderInstance: Identifiable, Codable, Hashable {
     ///   - OAuth-mode instances — their credential is the token, and an
     ///     instance with no token must keep reading as unauthenticated.
     var allowsEmptyAPIKey: Bool {
+        // [T-nabla-local-mlx-provider] Keyless by nature — configured-by-definition, so routing
+        // (`hasAnyCredential`) and the provider row treat it as ready without a Keychain probe.
+        if providerType == .localMLX { return true }
         guard credentialType == .apiKey,
               let base = customBaseURL?.trimmingCharacters(in: .whitespacesAndNewlines),
               !base.isEmpty else { return false }
@@ -355,6 +358,8 @@ struct ProviderInstance: Identifiable, Codable, Hashable {
             return ProviderKeychainHelper.loadOAuthToken(
                 instanceId: id, as: CopilotTokenStorage.self, caller: "hasAnyCredential"
             )?.githubToken.isEmpty == false
+        case .localMLX:
+            return true   // unreachable in practice: allowsEmptyAPIKey answers first
         case .antigravity, .openRouter, .unsupported:
             // unsupported = synced from a newer build; no usable credential here.
             // antigravity stores its token via AntigravityOAuthManager (no

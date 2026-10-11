@@ -1467,7 +1467,9 @@ final class AIChatViewModel: ObservableObject, SpeechControlling {
         case .openAI, .openAIResponses:
             // Custom/local base only — never official OpenAI.
             return instance.customBaseURL?.isEmpty == false
-        case .openRouter, .xAI, .kimiCode:
+        case .openRouter, .xAI, .kimiCode, .localMLX:
+            // localMLX: thinking is a chat-template switch (`enable_thinking`), so the toggle is
+            // meaningful for any model whose template supports it.
             return true
         // [T-copilot-provider] Copilot's /models reports `supports.thinking`
         // per model, so an explicit false there is authoritative — it belongs
@@ -1553,6 +1555,8 @@ final class AIChatViewModel: ObservableObject, SpeechControlling {
                 level = thinkLvl.displayName
             case .openAI, .openAIResponses, .openRouter, .xAI, .kimiCode, .githubCopilot:
                 level = OpenAIAgentProvider.reasoningEffort(for: model, level: thinkLvl) ?? "—"
+            case .localMLX:
+                level = thinkLvl.displayName
             case .unsupported:
                 level = "—"
             case .antigravity:
@@ -2813,9 +2817,6 @@ final class AIChatViewModel: ObservableObject, SpeechControlling {
     /// Credential validity is checked at send time, not here — avoids blocking the
     /// send button due to Keychain/OAuth state that SwiftUI can't observe.
     var isReady: Bool {
-        // [T-nabla-local-mlx-sentinel] Not `instances.contains { $0.isEnabled }`: the built-in
-        // on-device engine is never in `instances`, so that form disabled sending for anyone using only
-        // on-device models. `hasUsableProvider` answers what this flag actually means.
         ProviderConfigStore.shared.hasUsableProvider
     }
 

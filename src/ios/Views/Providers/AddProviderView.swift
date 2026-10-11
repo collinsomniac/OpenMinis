@@ -240,6 +240,7 @@ struct AddProviderView: View {
     /// relays commonly need no key. Mirrors ProviderInstance.allowsEmptyAPIKey —
     /// OAuth flows and official endpoints keep requiring a credential.
     private var emptyKeyAllowedForCurrentInput: Bool {
+        if selectedType == .localMLX, selectedCredential == .apiKey { return true }
         guard selectedCredential == .apiKey,
               !customBaseURLInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
               let type = selectedType else { return false }
@@ -472,6 +473,8 @@ struct AddProviderView: View {
             ForEach(visibleProviderTypes, id: \.self) { type in
                 Button {
                     selectedType = type
+                    // [T-nabla-local-mlx-provider] Nothing to authenticate: go straight to configure.
+                    if type == .localMLX { selectedCredential = .apiKey }
                     // Only seed the label when the user hasn't typed
                     // their own. Without this guard, switching back and
                     // forth between provider types silently overwrites
@@ -515,33 +518,6 @@ struct AddProviderView: View {
                 Text("You can add multiple instances of the same provider (e.g. work and personal accounts).")
                 Text("OpenAI and Anthropic also work with compatible third-party endpoints — set a custom API Base URL after choosing the matching protocol.")
             }
-        }
-
-        // [T-nabla-local-mlx-sentinel] A built-in engine rather than an account to add: the row leads to
-        // the on-device model library (download, folder, storage) instead of a credential form.
-        Section {
-            NavigationLink {
-                LocalInferenceSettingsView()
-            } label: {
-                HStack(spacing: 12) {
-                    Image(systemName: "cpu.fill")
-                        .font(.system(size: 17))
-                        .foregroundStyle(Color.accentColor)
-                        .frame(width: 28, height: 28)
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(AppLocalized("On this device"))
-                        Text(LocalModelStore.hasInstalledModels
-                             ? AppLocalized("\(LocalModelStore.installed().count) model(s) installed")
-                             : AppLocalized("Run MLX models on this iPhone's GPU"))
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-            }
-        } header: {
-            Text(AppLocalized("Built-in"))
-        } footer: {
-            Text(AppLocalized("No account and no API key. Models are downloaded once and run offline on the GPU."))
         }
 
         voiceProviderSection
@@ -748,7 +724,9 @@ struct AddProviderView: View {
                     }
             }
 
-            if selectedCredential == .apiKey {
+            if selectedType == .localMLX {
+                localMLXSection
+            } else if selectedCredential == .apiKey {
                 apiKeySection
             } else {
                 oauthSection
@@ -761,6 +739,54 @@ struct AddProviderView: View {
                         .foregroundStyle(.red)
                         .textSelection(.enabled)
                 }
+            }
+        }
+    }
+
+    /// [T-nabla-local-mlx-provider] Configure step for the on-device provider: show what the library
+    /// holds (these become the provider's models) and add it. Models are chosen afterwards in the
+    /// provider's model list, exactly as for any other provider.
+    private var localMLXSection: some View {
+        let models = LocalModelStore.installed()
+        return Group {
+            Section {
+                if models.isEmpty {
+                    Text(AppLocalized("No models in the library yet. You can add the provider now and download models later from Settings → Local Inference."))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                } else {
+                    ForEach(models, id: \.id) { m in
+                        LabeledContent {
+                            Text(ByteCountFormatter.string(fromByteCount: m.bytes, countStyle: .file))
+                                .font(.caption.monospaced())
+                                .foregroundStyle(.secondary)
+                        } label: {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(m.name)
+                                Text(m.id).font(.caption2.monospaced()).foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                }
+            } header: {
+                Text(AppLocalized("Models in your library"))
+            } footer: {
+                Text(AppLocalized("Read from the library folder. The provider's model list follows the folder as models are added or removed."))
+            }
+
+            Section {
+                Button {
+                    saveApiKeyInstance()
+                } label: {
+                    HStack {
+                        Spacer()
+                        if isSaving { ProgressView() } else {
+                            Text(AppLocalized("Add Provider")).fontWeight(.semibold)
+                        }
+                        Spacer()
+                    }
+                }
+                .disabled(isSaving)
             }
         }
     }
@@ -1107,6 +1133,7 @@ struct AddProviderView: View {
             // [T-copilot-provider] Same shape — the device flow lives in
             // CopilotDeviceLoginSheet so the risk notice is shown before it starts.
             case .githubCopilot: break
+            case .localMLX: break // keyless
             case .unsupported: break // free / unsupported — no OAuth
             }
             oauthAuthTime = Date()
@@ -1142,14 +1169,20 @@ struct AddProviderView: View {
             // The GitHub token is the credential worth showing; the session
             // token is derived and rotates every ~25 minutes.
             token = ProviderKeychainHelper.loadOAuthToken(instanceId: pendingInstanceId, as: CopilotTokenStorage.self)?.githubToken
-        case .unsupported:
-            token = nil // free / unsupported — no token
+        case .localMLX, .unsupported:
+            token = nil // keyless / unsupported — no token
         }
         guard let t = token, !t.isEmpty else { return nil }
         return ClaudeOAuthManager.maskToken(t)
     }
 
     private func goBack() {
+        if selectedType == .localMLX {
+            selectedType = nil
+            selectedCredential = nil
+            errorMessage = nil
+            return
+        }
         // Voice-template entry skipped the credential step, so Back returns
         // all the way to the type list (and clears the prefilled fields) rather
         // than dropping the user onto a credential picker they never saw.
@@ -1222,6 +1255,7 @@ struct AddProviderView: View {
         case .xAI: return AppLocalized("Sign in with xAI")
         case .kimiCode: return AppLocalized("Sign in with Kimi Code")
         case .githubCopilot: return AppLocalized("Sign in with GitHub")
+        case .localMLX: return AppLocalized("Sign In")
         case .unsupported: return AppLocalized("Sign In")
         }
     }
@@ -1238,6 +1272,7 @@ struct AddProviderView: View {
         case .xAI: return "xai-..."
         case .kimiCode: return "" // OAuth only
         case .githubCopilot: return "" // OAuth only
+        case .localMLX: return ""
         case .unsupported: return ""
         }
     }
@@ -1253,6 +1288,7 @@ struct AddProviderView: View {
         case .xAI: return "xAI (Grok)"
         case .kimiCode: return "Kimi Code"
         case .githubCopilot: return "GitHub Copilot"
+        case .localMLX: return AppLocalized("On-Device (MLX)")
         case .unsupported: return AppLocalized("Unsupported")
         }
     }
@@ -1283,7 +1319,9 @@ struct AddProviderView: View {
         // path and fails with no explanation.
         case .githubCopilot:
             return [.oauth]
-        case .openAIResponses, .gemini:
+        // [T-nabla-local-mlx-provider] Keyless. `.apiKey` with an empty key is the existing
+        // "configured-by-definition" shape (see allowsEmptyAPIKey), so no new credential kind.
+        case .openAIResponses, .gemini, .localMLX:
             return [.apiKey]
         default:
             return [.apiKey, .oauth]
@@ -1320,6 +1358,8 @@ struct AddProviderView: View {
             // [T-copilot-provider] The risk warning belongs where the user
             // decides, not only inside the sign-in sheet.
             return AppLocalized("Unofficial integration. Using it may get your GitHub Copilot account restricted — use at your own risk.")
+        case (.localMLX, _):
+            return AppLocalized("No key needed — models run on this iPhone.")
         case (.unsupported, _):
             return AppLocalized("This provider isn't supported in this app version.")
         }
@@ -1355,6 +1395,9 @@ struct AddProviderView: View {
         case .githubCopilot:
             Image(systemName: "chevron.left.forwardslash.chevron.right")
                 .foregroundStyle(.primary)
+        case .localMLX:
+            Image(systemName: "cpu")
+                .foregroundStyle(.blue)
         case .unsupported:
             Image(systemName: "questionmark.circle")
                 .foregroundStyle(.gray)
@@ -1372,6 +1415,7 @@ struct AddProviderView: View {
         case .xAI: return .gray
         case .kimiCode: return .indigo
         case .githubCopilot: return .primary
+        case .localMLX: return .blue
         case .unsupported: return .gray
         }
     }

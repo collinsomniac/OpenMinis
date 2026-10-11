@@ -1100,11 +1100,6 @@ final class ProviderConfigStore: ObservableObject {
             || id.hasPrefix(SystemVoiceProvider.builtinProviderId + "/") {
             return SystemVoiceProvider.providerInstance
         }
-        // [T-nabla-local-mlx-sentinel] The built-in on-device engine is the same shape of synthetic,
-        // local-only instance: never in config.instances, so never in the DB and never synced.
-        if LocalMLXProvider.ownsProviderId(id) {
-            return LocalMLXProvider.providerInstance
-        }
         return config.instances.first { $0.id == id }
     }
 
@@ -1117,19 +1112,13 @@ final class ProviderConfigStore: ObservableObject {
     /// list for its type.
     /// Whether any provider can actually serve a request right now.
     ///
-    /// [T-nabla-local-mlx-sentinel] The built-in on-device engine has no row in `config.instances` by
-    /// design — synthetic, never persisted, never synced — so every "is there a provider?" check that
-    /// reads `instances` alone answers "no" to a user who has a model installed and selected. That is not
-    /// cosmetic: `AIChatViewModel.isReady` asks the same question, so the send button stayed disabled
-    /// with a working engine right there. One predicate, here, instead of `!instances.isEmpty` copied
-    /// into every call site.
+    /// The on-device engine is an ordinary instance now (`.localMLX`), so this is simply "any enabled
+    /// instance" — kept as one named predicate so the call sites cannot drift apart again.
     var hasUsableProvider: Bool {
-        if config.instances.contains(where: { $0.isEnabled }) { return true }
-        return LocalModelStore.hasInstalledModels
+        config.instances.contains(where: { $0.isEnabled })
     }
 
     static func builtInModels(for instance: ProviderInstance) -> [LLMModel] {
-        if LocalMLXProvider.ownsProviderId(instance.id) { return LLMModel.allLocalMLX }
         return instance.providerType.builtInModels
     }
 
@@ -3045,6 +3034,11 @@ final class ProviderConfigStore: ObservableObject {
             // refresh right after sign-in works without any extra priming.
             let token = try await CopilotOAuthManager.shared.validSessionToken(instanceId: instance.id)
             return try await CopilotModelsAPI.fetchModels(sessionToken: token)
+        case (.localMLX, _):
+            // [T-nabla-local-mlx-provider] The catalog is the library folder: whatever is installed
+            // is exactly what can run. Same refresh → replaceEntries path as every vendor, so the
+            // provider's model list (and the user's show/hide choices on it) behave the same way.
+            return LLMModel.allLocalMLX
         case (.unsupported, _):
             // Synced from a newer build — can't fetch; keep whatever's stored.
             return []
@@ -3228,6 +3222,7 @@ final class ProviderConfigStore: ObservableObject {
         case .gemini: return "https://generativelanguage.googleapis.com"
         case .openRouter: return "https://openrouter.ai/api"
         case .antigravity: return nil // No public base URL
+        case .localMLX: return nil // on-device; no endpoint
         case .unsupported: return nil // synced from newer build
         }
     }

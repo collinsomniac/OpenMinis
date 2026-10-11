@@ -59,6 +59,13 @@ final class LocalInferenceModel: ObservableObject {
         // here must invalidate it — otherwise the provider screens keep showing the previous answer.
         LocalModelStore.invalidateInstalledCache()
         models = LocalModelStore.installed()
+        // [T-nabla-local-mlx-provider] The on-device provider's model list IS the folder. Re-read it
+        // whenever the library may have changed (download, delete, folder move), through the same
+        // refresh path a vendor's /models fetch uses, so the picker never offers a model that is gone.
+        let store = ProviderConfigStore.shared
+        for instance in store.instances where instance.providerType == .localMLX {
+            Task { await store.refreshModels(for: instance) }
+        }
         libraryPath = LocalModelStore.root.path
         usingCustomFolder = LocalModelStore.isUsingCustomFolder
         availableMemoryBytes = Self.availableMemory()

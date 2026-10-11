@@ -25,6 +25,12 @@ enum ProviderType: String, Codable, CaseIterable, Hashable, Sendable {
     /// flows through OpenAIProvider like xAI/Kimi. Opt-in, warned about in the
     /// sign-in UI, and hideable via CopilotConstants.isEnabled.
     case githubCopilot
+    /// [T-nabla-local-mlx-provider] On-device inference: MLX models from the library folder
+    /// (Settings → Local Inference). No account, no key, no network. Its model list is read from disk
+    /// rather than fetched, but otherwise it is an ordinary instance with ordinary entries, so every
+    /// path that resolves a selected model — sessions, groups, the picker, fallback — works unchanged.
+    /// An older build decodes this raw value to `.unsupported`, which is the designed degradation.
+    case localMLX
     /// Sentinel for a provider type this app build doesn't recognize — e.g. a
     /// NEWER build synced an instance whose `provider_type` string isn't a known
     /// case here. We DECODE to this instead of throwing/dropping, so the instance
@@ -50,6 +56,7 @@ enum ProviderType: String, Codable, CaseIterable, Hashable, Sendable {
         case .xAI: return "xAI (Grok)"
         case .kimiCode: return "Kimi Code"
         case .githubCopilot: return "GitHub Copilot"
+        case .localMLX: return "On-Device (MLX)"
         case .unsupported: return "Unsupported"
         }
     }
@@ -85,6 +92,9 @@ enum ProviderType: String, Codable, CaseIterable, Hashable, Sendable {
             // Responses-API instances are API-key only; the OAuth branch
             // returns builtInModels.
             return false
+        case .localMLX:
+            // No OAuth, and nothing to discover over a network: the library folder is the catalog.
+            return false
         case .unsupported:
             // Synced from a newer build — nothing to fetch with.
             return false
@@ -106,6 +116,7 @@ enum ProviderType: String, Codable, CaseIterable, Hashable, Sendable {
         // (`model_picker_enabled`), never a compiled-in guess that would go
         // stale and offer models the account cannot use.
         case .githubCopilot: return []
+        case .localMLX: return LLMModel.allLocalMLX
         case .unsupported: return []
         }
     }
@@ -130,6 +141,8 @@ enum ProviderType: String, Codable, CaseIterable, Hashable, Sendable {
             return AppLocalized("Sign in with your Kimi Code / Coding Plan subscription")
         case .githubCopilot:
             return AppLocalized("Sign in with GitHub — unofficial, use at your own risk")
+        case .localMLX:
+            return AppLocalized("Runs MLX models from this iPhone's library — no account, no API key")
         case .antigravity:
             return AppLocalized("\(builtInModels.count) built-in models")
         case .unsupported:
@@ -149,6 +162,7 @@ enum ProviderType: String, Codable, CaseIterable, Hashable, Sendable {
         case .xAI: return .vision
         case .kimiCode: return .vision
         case .githubCopilot: return .vision
+        case .localMLX: return .textOnly
         case .unsupported: return .vision
         }
     }

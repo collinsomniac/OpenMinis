@@ -97,36 +97,7 @@ struct ProviderInstancesView: View {
                 }
             }
 
-            // [T-nabla-local-mlx-sentinel] The built-in on-device engine is not in `store.instances`
-            // (synthetic, never persisted), so the loop above cannot produce it — the picker's trick of
-            // appending the section explicitly is repeated here, so the engine is discoverable wherever
-            // providers are listed.
-            Section {
-                NavigationLink {
-                    LocalInferenceSettingsView()
-                } label: {
-                    HStack(spacing: 12) {
-                        Image(systemName: "cpu.fill")
-                            .font(.system(size: 17))
-                            .foregroundStyle(Color.accentColor)
-                            .frame(width: 28, height: 28)
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(AppLocalized("On this device"))
-                            Text(LocalModelStore.hasInstalledModels
-                                 ? AppLocalized("\(LocalModelStore.installed().count) model(s) installed")
-                                 : AppLocalized("No models installed yet"))
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                }
-            } header: {
-                Text(AppLocalized("Built-in"))
-            } footer: {
-                Text(AppLocalized("Runs models on this iPhone's GPU. No account, no API key — nothing leaves the device."))
-            }
-
-            if store.instances.isEmpty && !LocalModelStore.hasInstalledModels {
+            if store.instances.isEmpty {
                 Section {
                     VStack(spacing: 8) {
                         Image(systemName: "key.slash")
@@ -446,6 +417,7 @@ private struct InstanceRow: View {
         case .xAI: return XAIOAuthManager.shared.isAuthenticated(instanceId: instance.id)
         case .kimiCode: return KimiOAuthManager.shared.isAuthenticated(instanceId: instance.id)
         case .githubCopilot: return CopilotOAuthManager.shared.isAuthenticated(instanceId: instance.id)
+        case .localMLX: return false // keyless; never OAuth
         case .unsupported: return false // synced from newer build
         }
     }

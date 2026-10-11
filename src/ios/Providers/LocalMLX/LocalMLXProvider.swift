@@ -2,44 +2,12 @@ import Foundation
 
 // LocalMLX providers — adapt LocalModelHost to the app's two provider protocols.
 //
-// [T-nabla-local-mlx-sentinel] This is a *built-in* engine, so it follows the pattern the author
-// established for the System speech engine rather than the third-party provider path:
-//
-//   * a sentinel id (`__builtin_local_mlx__`),
-//   * a synthetic `ProviderInstance` that is deliberately never appended to `config.instances` — so it
-//     is never written to the config DB and never synced to iCloud,
-//   * **no new `ProviderType` case**, because nothing is ever encoded: routing is by id, so a peer
-//     running an unmodified build can never be asked to decode a type it does not know.
-//
-// `ProviderConfigStore.instance(for:)` returns that synthetic instance for the sentinel id and for any
-// composite id of the form `<sentinel>/<model>`, which is how one built-in engine offers several
-// selectable models — the same shape the System voice engine uses for its `<sentinel>/<voice|asr>` ids.
+// [T-nabla-local-mlx-provider] A real `ProviderType.localMLX`: instances are added through Add
+// Provider like any vendor, and the model list is the library folder (see fetchModelsForInstance).
 //
 // Text only for now: tool definitions are not forwarded to local models yet. Small models with large
 // tool schemas are a known weak spot, and tool results are rendered into the transcript as text so the
 // agent can still read them.
-
-extension LocalMLXProvider {
-    /// Sentinel id for the built-in on-device engine. Never persisted.
-    static let builtinProviderId = "__builtin_local_mlx__"
-
-    /// Synthetic, local-only instance. `providerType`/`credentialType` are arbitrary — the engine is
-    /// reached by id and needs no credential and no base URL. `createdAt` is a fixed epoch so the
-    /// value is deterministic.
-    static let providerInstance = ProviderInstance(
-        id: builtinProviderId,
-        label: AppLocalized("On this device", comment: "Built-in on-device MLX engine provider name"),
-        providerType: .openAI,          // arbitrary — never used for auth/routing; the engine routes by id
-        credentialType: .apiKey,        // arbitrary — the engine needs no credential
-        isEnabled: true,
-        createdAt: Date(timeIntervalSince1970: 0)
-    )
-
-    /// True for the sentinel id and for `<sentinel>/<anything>` composite ids.
-    static func ownsProviderId(_ id: String) -> Bool {
-        id == builtinProviderId || id.hasPrefix(builtinProviderId + "/")
-    }
-}
 
 /// Plain chat / completion provider (title generation, quick tasks, non-agent paths).
 struct LocalMLXProvider: LLMProvider {
@@ -152,23 +120,7 @@ extension LLMModel {
     /// Inference settings page is where that changes.
     static var allLocalMLX: [LLMModel] {
         LocalModelStore.installed().map { m in
-            LLMModel(id: m.id, displayName: "\(m.name) (on-device)", provider: LocalMLXProvider.builtinProviderId)
-        }
-    }
-}
-
-extension ModelEntry {
-    /// Picker entries for the built-in on-device engine.
-    ///
-    /// Built from the models actually installed in `Documents/Models`, so unlike every other provider
-    /// these entries have no row in `store.modelEntries` — the sentinel instance is never persisted.
-    /// The picker appends them the same way it appends the System ASR/voice entries.
-    static func localMLXEntries() -> [ModelEntry] {
-        LocalModelStore.installed().map { m in
-            ModelEntry(providerInstanceId: LocalMLXProvider.builtinProviderId,
-                       model: LLMModel(id: m.id,
-                                       displayName: "\(m.name) (on-device)",
-                                       provider: LocalMLXProvider.builtinProviderId))
+            LLMModel(id: m.id, displayName: "\(m.name) (on-device)", provider: "localMLX")
         }
     }
 }
