@@ -81,6 +81,9 @@ struct InlineVoiceInputView: View {
     /// REMEMBERED across sessions. Reset to expand only by: (1) switching from text
     /// to voice, (2) sending a message (→ compact). A toggle/drag flips it.
     @ObservedObject private var voiceMode = VoiceModePreference.shared
+    /// Full-screen transcript editor presentation.
+    @State private var showFullEditor = false
+
     private var expanded: Bool {
         get { voiceMode.expanded }
         nonmutating set { voiceMode.expanded = newValue }
@@ -299,9 +302,20 @@ struct InlineVoiceInputView: View {
         // corners in BOTH modes. Leading/trailing insets = 12 to line up with the
         // bottom toolbar's `+` and send buttons (inputBottomRow padding 12).
         .overlay(alignment: .topLeading) {
-            expandCollapseButton
-                .padding(.top, 10)
-                .padding(.leading, 12)
+            VStack(spacing: 8) {
+                expandCollapseButton
+                fullEditorButton
+            }
+            .padding(.top, 10)
+            .padding(.leading, 12)
+        }
+        .sheet(isPresented: $showFullEditor) {
+            VoiceTranscriptEditorSheet(
+                text: Binding(get: { viewModel.transcript },
+                              set: { viewModel.setTranscript($0); inputText = $0 }),
+                isRecording: viewModel.state == .recording,
+                onDone: { showFullEditor = false }
+            )
         }
         .overlay(alignment: .topTrailing) {
             // [voice-correction, experimental] In DEBUG, this corner doubles as the
@@ -746,6 +760,28 @@ struct InlineVoiceInputView: View {
         .padding(.top, 6)
     }
 
+    /// Opens the transcript in a full-screen editor, available in both modes.
+    ///
+    /// [T-voice-full-editor] In the panel the transcript is bounded twice over — by the panel's own
+    /// height and by the band the layout gives the text — so long dictation is always read through a
+    /// keyhole, and while editing, the text view's own scrolling is clipped by that band (the reason the
+    /// top of a long transcript can be hard to reach). A full-screen editor removes the constraint
+    /// rather than working around it: everything visible at once, a caret that is not competing with a
+    /// drag recogniser, and the keyboard's own accessory bar.
+    private var fullEditorButton: some View {
+        Button {
+            showFullEditor = true
+        } label: {
+            Image(systemName: "arrow.up.left.and.arrow.down.right")
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(ChatColors.secondaryText)
+                .frame(width: 30, height: 30)
+                .background(Circle().fill(ChatColors.inputIconBg))
+                .overlay(Circle().strokeBorder(ChatColors.inputIconBorder, lineWidth: 0.5))
+        }
+        .accessibilityLabel(Text("Edit transcript full screen", comment: "Voice: full screen transcript editor"))
+    }
+
     /// Compact↔expand toggle. Mirrors the globe's pill styling.
     private var expandCollapseButton: some View {
         Button {
@@ -833,9 +869,18 @@ struct InlineVoiceInputView: View {
                     Text(viewModel.transcript)
                         .font(.body)
                         .foregroundStyle(ChatColors.primaryText)
-                        .multilineTextAlignment(.center)
+                        // [T-voice-transcript-box] Left-aligned in a box rather than centred floating
+                        // text: centring every wrapped line made long dictation hard to scan and, with
+                        // the 32pt side margins, pushed the text into more lines than the width needed.
+                        .multilineTextAlignment(.leading)
                         .fixedSize(horizontal: false, vertical: true)
-                        .frame(maxWidth: .infinity)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 8)
+                        .background(
+                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                .fill(ChatColors.inputIconBg)
+                        )
                         .background(GeometryReader { geo in
                             Color.clear.preference(key: TranscriptContentHeightKey.self,
                                                    value: geo.size.height)
@@ -891,7 +936,7 @@ struct InlineVoiceInputView: View {
         // menu, 30pt each at x=[12,42]). The panel has 16pt outer horizontal
         // padding; 32pt more → text starts at 48pt, clearing the 42pt button
         // edge by 6pt on each side.
-        .padding(.horizontal, 32)
+        .padding(.horizontal, 12)
     }
 
     // MARK: - Controls
@@ -1093,12 +1138,25 @@ struct InlineVoiceInputView: View {
     }
 
     /// True when the spinner is showing but mic is idle — tapping should cancel.
+    /// Whether the focal button is a *cancel* rather than the mic.
+    ///
+    /// [T-voice-pause-not-cancel] This used to be `isTranscribing && state != .recording`, which made
+    /// the button flip to a destructive cancel during `.waiting` — exactly the window right after the
+    /// user taps to pause. A pause tap therefore turned the button under their finger into "discard the
+    /// transcription in flight", so a natural pause-then-tap (or a quick double tap) silently destroyed
+    /// the segment that had just been spoken but not yet recognised. That is the reported "my dictation
+    /// is completely lost and never sent".
+    ///
+    /// The cancel affordance is genuinely useful while ASR is the activity — `.processing` (audio sent,
+    /// awaiting recognition) and `.result` — so it stays there. While `.waiting` the button is a mic, so
+    /// a tap resumes listening instead of discarding.
     private var showCancelIcon: Bool {
-        viewModel.isTranscribing && viewModel.state != .recording
+        viewModel.isTranscribing && (viewModel.state == .processing || viewModel.state == .result)
     }
 
     private var micButton: some View {
         Button {
+            VoiceLog.log("[voice-mic] tap state=\(viewModel.state) transcribing=\(viewModel.isTranscribing) cancelIcon=\(showCancelIcon) transcriptLen=\(viewModel.transcript.count) editing=\(viewModel.isEditingTranscript)")
             if showCancelIcon {
                 viewModel.cancelTranscription()
             } else {
@@ -1146,7 +1204,9 @@ struct InlineVoiceInputView: View {
         .disabled(viewModel.permissionDenied)
         .accessibilityLabel(showCancelIcon
             ? Text("Cancel transcription", comment: "Voice cancel transcription")
-            : Text("Toggle recording", comment: "Inline voice mic"))
+            : (viewModel.state == .recording
+                ? Text("Stop recording", comment: "Inline voice mic: currently recording")
+                : Text("Start listening", comment: "Inline voice mic: idle")))
     }
 
     // MARK: - [T-ios-context-usage-hint] Usage line in the status row
@@ -1626,6 +1686,57 @@ private struct PanelDragGestureModifier: ViewModifier {
             content.gesture(drag)
         } else {
             content.highPriorityGesture(drag)
+        }
+    }
+}
+
+
+/// Full-screen transcript editor.
+///
+/// Binds to the same transcript the panel shows, so editing here and dictating there are the same
+/// document — switching between them cannot lose text. Deliberately not a "compose" screen: sending
+/// stays with the composer's own button.
+struct VoiceTranscriptEditorSheet: View {
+    @Binding var text: String
+    let isRecording: Bool
+    let onDone: () -> Void
+
+    @FocusState private var focused: Bool
+
+    var body: some View {
+        NavigationStack {
+            VStack(spacing: 0) {
+                TextEditor(text: $text)
+                    .focused($focused)
+                    .font(.body)
+                    .scrollContentBackground(.hidden)
+                    .padding(.horizontal, 10)
+                Divider()
+                HStack {
+                    Text("\(text.count) characters")
+                        .font(.caption.monospaced())
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    if isRecording {
+                        Label(AppLocalized("Recording"), systemImage: "waveform")
+                            .font(.caption)
+                            .foregroundStyle(Color.red)
+                    }
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 8)
+            }
+            .navigationTitle(AppLocalized("Transcript"))
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button(AppLocalized("Done")) {
+                        focused = false
+                        onDone()
+                    }
+                }
+            }
+            .onAppear { focused = true }
         }
     }
 }
