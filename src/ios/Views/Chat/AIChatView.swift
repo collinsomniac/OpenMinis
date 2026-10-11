@@ -475,7 +475,7 @@ struct AIChatView: View {
     /// Default chat title for sessions without a generated title. Sourced
     /// from SOUL.md (`name`), falls back to "Minis". Refreshed on .soulMdChanged.
     @State private var soulName: String = SoulStore.cachedMetadata.name.isEmpty
-        ? "Minis" : SoulStore.cachedMetadata.name
+        ? "Nabla" : SoulStore.cachedMetadata.name
 
     /// True when any sheet or fullScreenCover is presented (suppress auto-focus to avoid keyboard bugs).
     private var hasOverlayPresented: Bool {
@@ -2198,7 +2198,7 @@ struct AIChatView: View {
             showFastBolt: codexFastModeEnabled && activeModelSupportsFastMode,
             resolvedText: resolved.map { "\($0.providerLabel) · \($0.modelName)" },
             hasBinding: vm.sessionId != nil && configStore.binding(for: vm.sessionId!) != nil,
-            hasProviders: !configStore.instances.isEmpty,
+            hasProviders: configStore.hasUsableProvider,
             showThinkingBadge: !vm.availableThinkingLevels.isEmpty
                 && (vm.currentThinkingLevel.isEnabled || vm.currentModelSupportsReasoning),
             thinkingLevelName: vm.currentThinkingLevel.displayName,
@@ -2214,7 +2214,7 @@ struct AIChatView: View {
         let isGroupBound = display.isGroupBound(for: vm.sessionId)
         let resolved = display.resolvedDetail(for: vm.sessionId)
         let hasBinding = vm.sessionId != nil && configStore.binding(for: vm.sessionId!) != nil
-        let hasProviders = !configStore.instances.isEmpty
+        let hasProviders = configStore.hasUsableProvider
 
         let isAuthed = hasBinding || hasProviders
 
@@ -2322,7 +2322,7 @@ struct AIChatView: View {
                     .padding(.top, legacyLayout ? 0 : 2)
                     .onReceive(NotificationCenter.default.publisher(for: .soulMdChanged)) { _ in
                         let n = SoulStore.cachedMetadata.name
-                        soulName = n.isEmpty ? "Minis" : n
+                        soulName = n.isEmpty ? "Nabla" : n
                     }
             }
             .buttonStyle(.plain)
@@ -3647,7 +3647,7 @@ struct AIChatView: View {
                 // Unlike the hints above, this one points at a Setting rather
                 // than an in-composer gesture, and so takes no soul name — the
                 // Return Key preference (Settings -> Appearance) is global.
-                AppLocalized("Minis can make the Return key send or insert a newline"),
+                AppLocalized("Nabla can make the Return key send or insert a newline"),
             ],
             // [T-ios-composer-placeholder-rotation] Rotate on the very first
             // focus too, but only when there is already a conversation to

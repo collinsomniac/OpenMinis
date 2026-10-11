@@ -252,7 +252,7 @@ private struct BridgedAssistantHeaderV3: View {
                 ),
                 cornerRadius: 5
             )
-            Text(soulMeta.name.isEmpty ? "Minis" : soulMeta.name)
+            Text(soulMeta.name.isEmpty ? "Nabla" : soulMeta.name)
                 .font(.body.weight(.semibold))
                 .foregroundStyle(ChatColors.primaryText)
         }

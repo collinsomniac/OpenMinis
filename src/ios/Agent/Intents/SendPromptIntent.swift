@@ -192,7 +192,7 @@ struct SendPromptIntent: AppIntent {
                 prompt: prompt,
                 responseText: reason
             )
-            return .result(value: rejected, dialog: IntentDialog(stringLiteral: AppLocalized("Minis could not accept the prompt (\(reason)).")))
+            return .result(value: rejected, dialog: IntentDialog(stringLiteral: AppLocalized("Nabla could not accept the prompt (\(reason)).")))
         }
 
         // Resolve actual model from session binding (matches what the agent loop uses)
@@ -220,7 +220,7 @@ struct SendPromptIntent: AppIntent {
             let promptPreview = String(prompt.prefix(50))
             ShortcutNotification.post(
                 id: "shortcut-start-\(sid)",
-                title: AppLocalized("Minis Task Started"),
+                title: AppLocalized("Nabla Task Started"),
                 body: "\(modelName): \(promptPreview)\(prompt.count > 50 ? "…" : "")",
                 sessionId: sid
             )
@@ -248,7 +248,7 @@ struct SendPromptIntent: AppIntent {
                     prompt: prompt,
                     responseText: Self.extractResponseText(from: vm)
                 )
-                return .result(value: partial, dialog: IntentDialog(stringLiteral: AppLocalized("Minis is still working on it. I'll notify you when it's done.")))
+                return .result(value: partial, dialog: IntentDialog(stringLiteral: AppLocalized("Nabla is still working on it. I'll notify you when it's done.")))
             }
 
             let responseText = Self.extractResponseText(from: vm)
@@ -258,7 +258,7 @@ struct SendPromptIntent: AppIntent {
             if sendCompletionNotification {
                 ShortcutNotification.post(
                     id: "shortcut-done-\(sid)",
-                    title: AppLocalized("Minis Task Completed"),
+                    title: AppLocalized("Nabla Task Completed"),
                     body: "\(modelName): \(String(responseText.prefix(200)))",
                     sessionId: sid
                 )
@@ -297,7 +297,7 @@ struct SendPromptIntent: AppIntent {
             if capturedSendCompletionNotification {
                 ShortcutNotification.post(
                     id: "shortcut-done-\(capturedSid)",
-                    title: AppLocalized("Minis Task Completed"),
+                    title: AppLocalized("Nabla Task Completed"),
                     body: "\(capturedModelName): \(summary)",
                     sessionId: capturedSid
                 )

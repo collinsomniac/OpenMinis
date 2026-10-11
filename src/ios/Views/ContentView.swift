@@ -1347,7 +1347,7 @@ struct ContentView: View {
     /// Soul name shown as the sidebar title. Sourced from SOUL.md, falls
     /// back to "Minis". Refreshed whenever SoulStore posts .soulMdChanged.
     @State private var soulName: String = SoulStore.cachedMetadata.name.isEmpty
-        ? "Minis" : SoulStore.cachedMetadata.name
+        ? "Nabla" : SoulStore.cachedMetadata.name
     /// Subtitle state shown under the "Minis" sidebar title. nil hides the
     /// row; otherwise it renders as small capsules per type or a single
     /// status string. Refreshed by a 5s timer.
@@ -3200,7 +3200,7 @@ struct ContentView: View {
         // and can't drop a .soulMdChanged notification arriving during reconstruction.
         .onReceive(NotificationCenter.default.publisher(for: .soulMdChanged)) { _ in
             let n = SoulStore.cachedMetadata.name
-            soulName = n.isEmpty ? "Minis" : n
+            soulName = n.isEmpty ? "Nabla" : n
         }
     }
 
@@ -4535,7 +4535,7 @@ struct ContentView: View {
     @State private var showRestoreBackup = false
 
     private var emptyState: some View {
-        let hasProviders = !providerStore.instances.isEmpty
+        let hasProviders = providerStore.hasUsableProvider
         let hasGroups = !providerStore.modelGroups.isEmpty
 
         return VStack(spacing: 32) {
@@ -6244,7 +6244,7 @@ struct ContentView: View {
                 done += 1
                 if msg.isToolResultOnly { continue }
 
-                let role = msg.role == .user ? "User" : "Minis"
+                let role = msg.role == .user ? "User" : "Nabla"
                 let time = timeFmt.string(from: msg.createdAt)
                 var parts: [String] = []
                 for part in msg.parts {
@@ -8650,7 +8650,7 @@ private struct SettingsSheet: View {
         components.scheme = "mailto"
         components.path = "dev@openminis.app"
         components.queryItems = [
-            URLQueryItem(name: "subject", value: "Minis Feedback"),
+            URLQueryItem(name: "subject", value: "Nabla Feedback"),
             URLQueryItem(name: "body", value: body),
         ]
         return components.url

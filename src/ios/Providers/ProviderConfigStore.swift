@@ -1115,6 +1115,19 @@ final class ProviderConfigStore: ObservableObject {
     /// whatever is actually on disk in Documents/Models — rather than a provider type's static list,
     /// so the picker offers exactly the models that can run. Every other instance keeps the static
     /// list for its type.
+    /// Whether any provider can actually serve a request right now.
+    ///
+    /// [T-nabla-local-mlx-sentinel] The built-in on-device engine has no row in `config.instances` by
+    /// design — synthetic, never persisted, never synced — so every "is there a provider?" check that
+    /// reads `instances` alone answers "no" to a user who has a model installed and selected. That is not
+    /// cosmetic: `AIChatViewModel.isReady` asks the same question, so the send button stayed disabled
+    /// with a working engine right there. One predicate, here, instead of `!instances.isEmpty` copied
+    /// into every call site.
+    var hasUsableProvider: Bool {
+        if config.instances.contains(where: { $0.isEnabled }) { return true }
+        return LocalModelStore.hasInstalledModels
+    }
+
     static func builtInModels(for instance: ProviderInstance) -> [LLMModel] {
         if LocalMLXProvider.ownsProviderId(instance.id) { return LLMModel.allLocalMLX }
         return instance.providerType.builtInModels

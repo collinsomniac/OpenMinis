@@ -108,6 +108,22 @@ enum LocalModelStore {
         return ((try? fm.contentsOfDirectory(atPath: d.path)) ?? []).contains { $0.hasSuffix(".safetensors") }
     }
 
+    /// Whether the library holds anything, cheaply.
+    ///
+    /// Read from view bodies that re-evaluate constantly (every "is there a provider?" check), so the
+    /// directory scan is cached briefly and invalidated explicitly when the library changes. A scan per
+    /// render would be a needless syscall storm on the main thread.
+    private static var installedCache: (count: Int, at: Date)?
+
+    static var hasInstalledModels: Bool {
+        if let c = installedCache, Date().timeIntervalSince(c.at) < 3 { return c.count > 0 }
+        let n = installed().count
+        installedCache = (n, Date())
+        return n > 0
+    }
+
+    static func invalidateInstalledCache() { installedCache = nil }
+
     static func installed() -> [LocalModelInfo] {
         ((try? FileManager.default.contentsOfDirectory(at: root, includingPropertiesForKeys: nil)) ?? [])
             .filter(isModelDir)

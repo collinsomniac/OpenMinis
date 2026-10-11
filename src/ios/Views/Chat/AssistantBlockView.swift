@@ -1079,7 +1079,7 @@ struct TypingIndicator: View {
     /// `.soulMdChanged` Notification — same wiring used by `AssistantSoulName`.
     @State private var soulName: String = {
         let n = SoulStore.cachedMetadata.name.trimmingCharacters(in: .whitespacesAndNewlines)
-        return n.isEmpty ? "Minis" : n
+        return n.isEmpty ? "Nabla" : n
     }()
 
     var body: some View {
@@ -1097,7 +1097,7 @@ struct TypingIndicator: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: .soulMdChanged)) { _ in
             let n = SoulStore.cachedMetadata.name.trimmingCharacters(in: .whitespacesAndNewlines)
-            soulName = n.isEmpty ? "Minis" : n
+            soulName = n.isEmpty ? "Nabla" : n
         }
         .font(.system(size: 15, weight: .medium))
         .foregroundStyle(ChatColors.tertiaryText)

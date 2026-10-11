@@ -735,7 +735,7 @@ struct MinisApp: App {
 
     private static let fileProviderDomain = NSFileProviderDomain(
         identifier: NSFileProviderDomainIdentifier("io.github.collinsomniac.nabla.files"),
-        displayName: "Minis"
+        displayName: "Nabla"
     )
 
     /// Bumped when we need to force-rebuild the FileProvider domain on next launch

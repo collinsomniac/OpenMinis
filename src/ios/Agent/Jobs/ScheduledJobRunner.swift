@@ -231,7 +231,7 @@ enum ScheduledJobRunner {
             JobInsuranceNotification.schedule(
                 jobId: job.id,
                 at: Date().addingTimeInterval(TimeInterval(AIChatViewModel.helperMaxMinutes * 60)),
-                title: AppLocalized("Minis agent"),
+                title: AppLocalized("Nabla agent"),
                 body: String(format: AppLocalized("The agent \"%@\" may have finished or been interrupted. Open to check."), title),
                 userInfo: ["sessionId": parentSid, "childSessionId": session.id, "helperJobId": job.id])
             return session.id
@@ -433,7 +433,7 @@ enum ScheduledJobRunner {
         let name = job.label ?? job.title
         JobInsuranceNotification.schedule(
             jobId: job.id, at: date.addingTimeInterval(5),
-            title: AppLocalized("Minis scheduled task"),
+            title: AppLocalized("Nabla scheduled task"),
             body: String(format: AppLocalized("\"%@\" is due. Open Minis to see whether it ran."), name),
             userInfo: job.target.parentSessionId.map { ["sessionId": $0] }
                 ?? job.target.sessionIdForNavigation.map { ["sessionId": $0] } ?? [:])

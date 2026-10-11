@@ -55,6 +55,9 @@ final class LocalInferenceModel: ObservableObject {
     nonisolated func format(_ bytes: Int64) -> String { Self.byteFormatter.string(fromByteCount: bytes) }
 
     func refresh() {
+        // The rest of the app gates on "is anything installed" through a short-lived cache, so a change
+        // here must invalidate it — otherwise the provider screens keep showing the previous answer.
+        LocalModelStore.invalidateInstalledCache()
         models = LocalModelStore.installed()
         libraryPath = LocalModelStore.root.path
         usingCustomFolder = LocalModelStore.isUsingCustomFolder

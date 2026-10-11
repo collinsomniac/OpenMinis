@@ -342,7 +342,7 @@ struct MCPFormSheet: View {
             }
         } else {
             VStack(alignment: .leading, spacing: 8) {
-                Text(AppLocalized("Minis will find this service's sign-in page automatically. No Client ID needed."))
+                Text(AppLocalized("Nabla will find this service's sign-in page automatically. No Client ID needed."))
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 Button {

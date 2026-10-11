@@ -993,7 +993,7 @@ final class OpenRouterVoiceProvider: VoiceProvider {
     override func applyVoiceAuth(_ request: inout URLRequest) {
         super.applyVoiceAuth(&request)
         request.setValue("https://github.com/OpenMinis/OpenMinis", forHTTPHeaderField: "HTTP-Referer")
-        request.setValue("Minis App", forHTTPHeaderField: "X-Title")
+        request.setValue("Nabla App", forHTTPHeaderField: "X-Title")
     }
 
     // MARK: - TTS

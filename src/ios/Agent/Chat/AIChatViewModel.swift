@@ -2813,7 +2813,10 @@ final class AIChatViewModel: ObservableObject, SpeechControlling {
     /// Credential validity is checked at send time, not here — avoids blocking the
     /// send button due to Keychain/OAuth state that SwiftUI can't observe.
     var isReady: Bool {
-        ProviderConfigStore.shared.instances.contains { $0.isEnabled }
+        // [T-nabla-local-mlx-sentinel] Not `instances.contains { $0.isEnabled }`: the built-in
+        // on-device engine is never in `instances`, so that form disabled sending for anyone using only
+        // on-device models. `hasUsableProvider` answers what this flag actually means.
+        ProviderConfigStore.shared.hasUsableProvider
     }
 
     // MARK: - Send Message

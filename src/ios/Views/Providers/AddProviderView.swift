@@ -26,7 +26,7 @@ struct AIDataSharingConsentView: View {
                         VStack(alignment: .leading, spacing: 12) {
                             Text("We Do Not Collect Your Data")
                                 .font(.headline)
-                            Text("Minis does not operate any server and does not collect, store, or process any of your personal data. All data stays on your device.")
+                            Text("Nabla does not operate any server and does not collect, store, or process any of your personal data. All data stays on your device.")
                                 .font(.subheadline)
                                 .foregroundStyle(.secondary)
                             Text("However, when you add a third-party AI provider and use it for conversations, the following data may be sent directly from your device to that provider's servers:")
@@ -515,6 +515,33 @@ struct AddProviderView: View {
                 Text("You can add multiple instances of the same provider (e.g. work and personal accounts).")
                 Text("OpenAI and Anthropic also work with compatible third-party endpoints — set a custom API Base URL after choosing the matching protocol.")
             }
+        }
+
+        // [T-nabla-local-mlx-sentinel] A built-in engine rather than an account to add: the row leads to
+        // the on-device model library (download, folder, storage) instead of a credential form.
+        Section {
+            NavigationLink {
+                LocalInferenceSettingsView()
+            } label: {
+                HStack(spacing: 12) {
+                    Image(systemName: "cpu.fill")
+                        .font(.system(size: 17))
+                        .foregroundStyle(Color.accentColor)
+                        .frame(width: 28, height: 28)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(AppLocalized("On this device"))
+                        Text(LocalModelStore.hasInstalledModels
+                             ? AppLocalized("\(LocalModelStore.installed().count) model(s) installed")
+                             : AppLocalized("Run MLX models on this iPhone's GPU"))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+        } header: {
+            Text(AppLocalized("Built-in"))
+        } footer: {
+            Text(AppLocalized("No account and no API key. Models are downloaded once and run offline on the GPU."))
         }
 
         voiceProviderSection

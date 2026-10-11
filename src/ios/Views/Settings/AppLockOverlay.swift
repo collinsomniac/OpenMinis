@@ -15,7 +15,7 @@ struct AppLockOverlay: View {
                         .font(.system(size: 48))
                         .foregroundStyle(.secondary)
 
-                    Text("Minis is Locked")
+                    Text("Nabla is Locked")
                         .font(.title2.bold())
 
                     Text("Tap to unlock with \(BiometricAuth.biometryDisplayName)")

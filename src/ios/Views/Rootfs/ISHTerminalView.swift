@@ -93,7 +93,7 @@ struct ISHTerminalView: View {
             )
         }
         .background(Color.black)
-        .navigationTitle("Minis Shell")
+        .navigationTitle("Nabla Shell")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             if showCloseButton {
