@@ -354,6 +354,10 @@ struct UnifiedModelPicker: View {
                 pool.append(contentsOf: ModelEntry.systemTTSVoiceEntries())
             }
         }
+        // [T-nabla-local-mlx-sentinel] The built-in on-device engine's models come from what is
+        // actually installed on disk, not from `store.modelEntries` (the sentinel instance is never
+        // persisted), so they are appended here exactly as the System ASR/voice entries are above.
+        pool.append(contentsOf: ModelEntry.localMLXEntries())
         if let f = config.candidateFilter { pool = pool.filter(f) }
         if let existing = config.existingIds?() { pool = pool.filter { !existing.contains($0.id) } }
         return pool
@@ -378,6 +382,12 @@ struct UnifiedModelPicker: View {
         // synthetic local-only instance rather than a parallel systemSection.
         if !systemEntries.isEmpty {
             result.append((SystemVoiceProvider.providerInstance, systemEntries))
+        }
+        // Same treatment for the built-in on-device engine: its entries carry the sentinel id, which
+        // is not in `store.instances`, so the loop below cannot produce this section.
+        let localEntries = regularEntries.filter { LocalMLXProvider.ownsProviderId($0.providerInstanceId) }
+        if !localEntries.isEmpty {
+            result.append((LocalMLXProvider.providerInstance, ProviderConfigStore.sortedByReleaseRank(localEntries)))
         }
         let grouped = Dictionary(grouping: regularEntries, by: { $0.providerInstanceId })
         var seen = Set<String>()

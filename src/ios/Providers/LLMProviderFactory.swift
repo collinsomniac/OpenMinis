@@ -55,6 +55,12 @@ enum LLMProviderFactory {
             return applyModelOverrides(p, entry: entry)
         }
         let openCode = finish
+        // [T-nabla-local-mlx-sentinel] Built-in on-device engine. Reached by id rather than by
+        // providerType — the synthetic instance deliberately reuses an existing type so that nothing
+        // new is ever encoded — and it needs no credential and no base URL.
+        if LocalMLXProvider.ownsProviderId(instance.id) {
+            return LocalMLXProvider(model: entry.model)
+        }
         switch instance.providerType {
         case .anthropic:
             return makeAnthropicProvider(instance: instance, model: entry.model)

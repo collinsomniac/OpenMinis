@@ -838,9 +838,9 @@ final class ProviderConfigStore: ObservableObject {
             if instance.providerType == .openAI {
                 builtIn = ModelsDevAPI.enrichModels(LLMModel.allOpenAICodexOAuth)
             } else if instance.providerType == .openRouter {
-                builtIn = ModelsDevAPI.enrichModels(instance.providerType.builtInModels)
+                builtIn = ModelsDevAPI.enrichModels(builtInModels(for: instance))
             } else {
-                builtIn = ModelsDevAPI.enrichModels(instance.providerType.builtInModels)
+                builtIn = ModelsDevAPI.enrichModels(builtInModels(for: instance))
             }
             let entries = builtIn.map { model in
                 ModelEntry(providerInstanceId: instance.id, model: model)
@@ -1100,7 +1100,24 @@ final class ProviderConfigStore: ObservableObject {
             || id.hasPrefix(SystemVoiceProvider.builtinProviderId + "/") {
             return SystemVoiceProvider.providerInstance
         }
+        // [T-nabla-local-mlx-sentinel] The built-in on-device engine is the same shape of synthetic,
+        // local-only instance: never in config.instances, so never in the DB and never synced.
+        if LocalMLXProvider.ownsProviderId(id) {
+            return LocalMLXProvider.providerInstance
+        }
         return config.instances.first { $0.id == id }
+    }
+
+
+    /// Built-in models for an instance.
+    ///
+    /// [T-nabla-local-mlx-sentinel] The built-in on-device engine enumerates **its own library** —
+    /// whatever is actually on disk in Documents/Models — rather than a provider type's static list,
+    /// so the picker offers exactly the models that can run. Every other instance keeps the static
+    /// list for its type.
+    func builtInModels(for instance: ProviderInstance) -> [LLMModel] {
+        if LocalMLXProvider.ownsProviderId(instance.id) { return LLMModel.allLocalMLX }
+        return instance.providerType.builtInModels
     }
 
     func enabledInstances(for providerType: ProviderType) -> [ProviderInstance] {
@@ -3151,7 +3168,7 @@ final class ProviderConfigStore: ObservableObject {
                 throw ModelRefreshError.modelsDevNoMatch(warnings: warnings)
             }
             // Fall back to built-in models
-            let builtIn = ModelsDevAPI.enrichModels(instance.providerType.builtInModels)
+            let builtIn = ModelsDevAPI.enrichModels(builtInModels(for: instance))
             if !builtIn.isEmpty {
                 logger.info("Using \(builtIn.count) built-in models for \(instance.label)")
                 return ModelFetchResult(models: builtIn, source: "built-in", warnings: warnings)
@@ -3174,7 +3191,7 @@ final class ProviderConfigStore: ObservableObject {
             logger.info("Third-party endpoint, skipping built-in fallback for \(instance.label)")
             throw ModelRefreshError.modelsDevNoMatch(warnings: warnings)
         }
-        let builtIn = ModelsDevAPI.enrichModels(instance.providerType.builtInModels)
+        let builtIn = ModelsDevAPI.enrichModels(builtInModels(for: instance))
         if !builtIn.isEmpty {
             logger.info("Using \(builtIn.count) built-in models for \(instance.label)")
             return ModelFetchResult(models: builtIn, source: "built-in", warnings: warnings)

@@ -16,21 +16,14 @@ import FoundationModels
 // load costs and a fixed memory budget. A credential form cannot express "2.3 GB, currently resident,
 // 27 tok/s". Everything the rest of the app measures is about tokens and context; nothing was about
 // the hardware, and on a phone the hardware is the binding constraint.
-
-/// One model file set found in the on-device library.
-struct LocalModelRecord: Identifiable, Hashable {
-    let id: String            // Hugging Face repo id, or a folder name for an imported model
-    let directory: URL
-    let bytes: Int64
-    let modelType: String
-    let thinkingCapable: Bool
-
-    var name: String { id.split(separator: "/").last.map(String.init) ?? id }
-}
+//
+// This page is also where the library is filled: the engine runs whatever sits in Documents/Models,
+// which is a normal folder in Files, so a model can arrive by download here, by copy from another app
+// (LoopLab keeps its models in the same relative place), or by AirDrop into Files.
 
 @MainActor
 final class LocalInferenceModel: ObservableObject {
-    @Published var models: [LocalModelRecord] = []
+    @Published var models: [LocalModelInfo] = []
     @Published var libraryPath: String = ""
     @Published var availableMemoryBytes: Int = 0
     @Published var memoryEntitlementGranted = false
@@ -38,9 +31,11 @@ final class LocalInferenceModel: ObservableObject {
     @Published var gpuName: String = "?"
     @Published var gpuWorkingSetBytes: UInt64 = 0
     @Published var appleIntelligenceStatus: String = "unknown"
-    @Published var isScanning = false
-
-    private let fm = FileManager.default
+    @Published var residentModel: String?
+    @Published var busyModel: String?
+    @Published var progress: Double?
+    @Published var errorText: String?
+    @Published var downloadField: String = ""
 
     private static let byteFormatter: ByteCountFormatter = {
         let f = ByteCountFormatter()
@@ -49,23 +44,13 @@ final class LocalInferenceModel: ObservableObject {
         return f
     }()
 
-    func format(_ bytes: Int64) -> String { Self.byteFormatter.string(fromByteCount: bytes) }
-
-    /// Where on-device models live. Deliberately a plain folder the user can see: it is inside the
-    /// app container's Documents directory, so it appears in Files › On My iPhone › Nabla, and a
-    /// model can be dropped in or removed without this app's help.
-    var libraryURL: URL {
-        let docs = fm.urls(for: .documentDirectory, in: .userDomainMask)[0]
-        let dir = docs.appendingPathComponent("Models", isDirectory: true)
-        try? fm.createDirectory(at: dir, withIntermediateDirectories: true)
-        return dir
-    }
+    nonisolated func format(_ bytes: Int64) -> String { Self.byteFormatter.string(fromByteCount: bytes) }
 
     func refresh() {
-        isScanning = true
-        defer { isScanning = false }
-
-        libraryPath = libraryURL.path
+        // The library listing comes from LocalModelStore, the same enumeration the engine and the
+        // picker use — one source of truth, so the page cannot show a model the engine would reject.
+        models = LocalModelStore.installed()
+        libraryPath = LocalModelStore.root.path
         availableMemoryBytes = Self.availableMemory()
         memoryEntitlementGranted = Self.hasIncreasedMemoryLimit()
 
@@ -81,59 +66,62 @@ final class LocalInferenceModel: ObservableObject {
             gpuName = device.name
             gpuWorkingSetBytes = device.recommendedMaxWorkingSetSize
         }
-
         appleIntelligenceStatus = Self.appleIntelligenceAvailability()
-        models = Self.scan(libraryURL)
-    }
 
-    // MARK: - Scanning
-
-    /// A directory counts as a model when it has a config.json and at least one .safetensors file —
-    /// the same rule the loader uses, so the listing cannot claim a model the engine would reject.
-    nonisolated static func isModelDirectory(_ dir: URL) -> Bool {
-        let fm = FileManager.default
-        guard fm.fileExists(atPath: dir.appendingPathComponent("config.json").path) else { return false }
-        let files = (try? fm.contentsOfDirectory(atPath: dir.path)) ?? []
-        return files.contains { $0.hasSuffix(".safetensors") }
-    }
-
-    nonisolated static func scan(_ root: URL) -> [LocalModelRecord] {
-        let fm = FileManager.default
-        let subs = (try? fm.contentsOfDirectory(at: root, includingPropertiesForKeys: nil)) ?? []
-        return subs.filter { isModelDirectory($0) }.map { dir in
-            func json(_ name: String) -> [String: Any] {
-                guard let d = try? Data(contentsOf: dir.appendingPathComponent(name)) else { return [:] }
-                return (try? JSONSerialization.jsonObject(with: d)) as? [String: Any] ?? [:]
-            }
-            let marker = json(".looplab.json")
-            let id = marker["id"] as? String
-                ?? dir.lastPathComponent.replacingOccurrences(of: "__", with: "/")
-            var template = json("tokenizer_config.json")["chat_template"] as? String ?? ""
-            if let jinja = try? String(contentsOf: dir.appendingPathComponent("chat_template.jinja"), encoding: .utf8) {
-                template += jinja
-            }
-            var total: Int64 = 0
-            if let e = fm.enumerator(at: dir, includingPropertiesForKeys: [.fileSizeKey]) {
-                for case let u as URL in e {
-                    total += Int64((try? u.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0)
-                }
-            }
-            return LocalModelRecord(id: id, directory: dir, bytes: total,
-                                    modelType: json("config.json")["model_type"] as? String ?? "?",
-                                    thinkingCapable: template.contains("enable_thinking"))
+        Task {
+            let s = await LocalModelHost.shared.status()
+            residentModel = s.resident ? s.modelId : nil
         }
-        .sorted { $0.name.lowercased() < $1.name.lowercased() }
+    }
+
+    // MARK: - Engine control
+
+    func load(_ id: String) {
+        guard busyModel == nil else { return }
+        busyModel = id
+        errorText = nil
+        progress = models.contains(where: { $0.id == id }) ? nil : 0
+        Task {
+            do {
+                _ = try await LocalModelHost.shared.load(id) { p in
+                    Task { @MainActor in self.progress = p }
+                }
+                progress = nil
+                busyModel = nil
+                refresh()
+            } catch {
+                // Honest failure: a model that will not fit (or will not parse) must say so here
+                // rather than surface later as an agent turn that simply never produces tokens.
+                errorText = "\(error)"
+                progress = nil
+                busyModel = nil
+            }
+        }
+    }
+
+    func downloadAndLoad(_ raw: String) {
+        let id = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !id.isEmpty, busyModel == nil else { return }
+        downloadField = ""
+        load(id)
+    }
+
+    func unload() {
+        Task {
+            await LocalModelHost.shared.unload()
+            refresh()
+        }
     }
 
     // MARK: - Device facts
 
-    /// Memory this process may actually use. The entitlement increases it from ~3.25 GB to ~6 GB on
-    /// an iPhone 17 Pro Max, which measured as a ~3x decode-speed difference (see FINDINGS-R3).
+    /// Memory this process may actually use. The entitlement raises it from ~3.25 GB to ~6 GB on an
+    /// iPhone 17 Pro Max, which measured as a ~3x decode-speed difference.
     nonisolated static func availableMemory() -> Int { os_proc_available_memory() }
 
     /// Whether the signed build carries `com.apple.developer.kernel.increased-memory-limit`.
-    /// Read from the embedded provisioning profile, not assumed: the value depends on what the
-    /// signer granted, which is exactly what failed for the app group.
+    /// Read from the embedded provisioning profile, not assumed: the value depends on what the signer
+    /// granted, which is exactly what went wrong for the app group.
     nonisolated static func hasIncreasedMemoryLimit() -> Bool {
         guard let url = Bundle.main.url(forResource: "embedded", withExtension: "mobileprovision"),
               let data = try? Data(contentsOf: url),
@@ -186,42 +174,68 @@ struct LocalInferenceSettingsView: View {
                     VStack(alignment: .leading, spacing: 6) {
                         Text(AppLocalized("No on-device models yet"))
                             .font(.subheadline).fontWeight(.medium)
-                        Text(AppLocalized("Models live in a folder you can open in Files. Drop a folder in, or download one here once the engine lands."))
+                        Text(AppLocalized("Models live in a folder you can open in Files. Drop a folder in, or download one below."))
                             .font(.caption).foregroundStyle(.secondary)
                     }
                     .padding(.vertical, 4)
                 } else {
-                    ForEach(model.models) { record in
-                        VStack(alignment: .leading, spacing: 3) {
-                            HStack {
-                                Text(record.name).font(.subheadline).fontWeight(.medium)
-                                Spacer()
-                                Text(model.format(record.bytes))
-                                    .font(.caption.monospaced()).foregroundStyle(.secondary)
-                            }
-                            HStack(spacing: 8) {
-                                tag(record.modelType)
-                                if record.thinkingCapable { tag(AppLocalized("can think")) }
-                            }
-                        }
-                        .padding(.vertical, 2)
+                    ForEach(model.models, id: \.id) { record in
+                        modelRow(record)
                     }
                 }
             } header: {
-                HStack {
-                    Text(AppLocalized("On-device models"))
-                    Spacer()
-                    if model.isScanning { ProgressView().controlSize(.mini) }
-                }
+                Text(AppLocalized("On-device models"))
             } footer: {
                 Text(model.libraryPath)
                     .font(.caption2.monospaced())
                     .foregroundStyle(.secondary)
             }
 
+            Section {
+                HStack {
+                    TextField(AppLocalized("org/model-name"), text: $model.downloadField)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                        .font(.callout.monospaced())
+                    Button(AppLocalized("Get")) {
+                        model.downloadAndLoad(model.downloadField)
+                    }
+                    .disabled(model.downloadField.trimmingCharacters(in: .whitespaces).isEmpty || model.busyModel != nil)
+                }
+                if let id = model.busyModel {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(model.progress == nil
+                             ? AppLocalized("Loading ") + id
+                             : AppLocalized("Downloading ") + id)
+                            .font(.caption)
+                        if let p = model.progress {
+                            ProgressView(value: p)
+                        } else {
+                            ProgressView()
+                        }
+                    }
+                }
+                if let e = model.errorText {
+                    Text(e)
+                        .font(.caption.monospaced())
+                        .foregroundStyle(.red)
+                }
+            } header: {
+                Text(AppLocalized("Add a model"))
+            } footer: {
+                Text(AppLocalized("Any MLX-format model from Hugging Face. It is downloaded once, moved into the folder above, and then runs offline."))
+                    .font(.caption)
+            }
+
             Section(AppLocalized("Engines")) {
                 LabeledContent(AppLocalized("On-device (MLX)")) {
-                    Text(AppLocalized("not linked yet")).foregroundStyle(.secondary)
+                    if let r = model.residentModel {
+                        Text(AppLocalized("running ") + r.split(separator: "/").last!)
+                            .foregroundStyle(.green)
+                    } else {
+                        Text(model.models.isEmpty ? AppLocalized("no models") : AppLocalized("ready"))
+                            .foregroundStyle(model.models.isEmpty ? .secondary : .green)
+                    }
                 }
                 LabeledContent(AppLocalized("Apple Intelligence")) {
                     Text(model.appleIntelligenceStatus)
@@ -261,6 +275,39 @@ struct LocalInferenceSettingsView: View {
         .navigationBarTitleDisplayMode(.inline)
         .task { model.refresh() }
         .refreshable { model.refresh() }
+    }
+
+    @ViewBuilder
+    private func modelRow(_ record: LocalModelInfo) -> some View {
+        let isResident = model.residentModel == record.id
+        let isBusy = model.busyModel == record.id
+        VStack(alignment: .leading, spacing: 4) {
+            HStack {
+                Text(record.name).font(.subheadline).fontWeight(.medium)
+                if isResident {
+                    Image(systemName: "bolt.fill").font(.caption2).foregroundStyle(.green)
+                }
+                Spacer()
+                Text(model.format(record.bytes))
+                    .font(.caption.monospaced()).foregroundStyle(.secondary)
+            }
+            HStack(spacing: 8) {
+                tag(record.modelType)
+                if record.thinkingCapable { tag(AppLocalized("can think")) }
+                Spacer()
+                if isBusy {
+                    ProgressView().controlSize(.mini)
+                } else if isResident {
+                    Button(AppLocalized("Unload")) { model.unload() }
+                        .font(.caption).buttonStyle(.bordered)
+                } else {
+                    Button(AppLocalized("Load")) { model.load(record.id) }
+                        .font(.caption).buttonStyle(.bordered)
+                        .disabled(model.busyModel != nil)
+                }
+            }
+        }
+        .padding(.vertical, 2)
     }
 
     private func tag(_ text: String) -> some View {

@@ -102,6 +102,10 @@ extension AIChatViewModel {
             }
             return LLMProviderFactory.applyModelOverrides(p, entry: entry)
         }
+        // [T-nabla-local-mlx-sentinel] Built-in on-device engine — see LLMProviderFactory.
+        if LocalMLXProvider.ownsProviderId(instance.id) {
+            return LocalMLXAgentProvider(model: entry.model)
+        }
         switch instance.providerType {
         case .anthropic:
             return AnthropicAgentProvider(provider: LLMProviderFactory.makeAnthropicProvider(instance: instance, model: entry.model))
