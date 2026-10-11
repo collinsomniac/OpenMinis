@@ -155,12 +155,13 @@ actor LocalModelHost {
         let info = LocalModelStore.profile(LocalModelStore.dir(for: id))
 
         var params = GenerateParameters(maxTokens: maxTokens)
-        let s = info.sampling
-        params.temperature = temperature ?? s.temperature
-        params.topP = s.topP            // 1.0 unless the model asked for a small one with no cheaper filter
-        params.topK = s.topK
-        params.minP = s.minP
-        params.repetitionPenalty = s.repetitionPenalty
+        let sampling = info.sampling
+        params.temperature = temperature ?? sampling.temperature
+        // 1.0 unless the model asked for a small top-p AND has no cheaper filter to use instead.
+        params.topP = sampling.topP
+        params.topK = sampling.topK
+        params.minP = sampling.minP
+        params.repetitionPenalty = sampling.repetitionPenalty
 
         let key = "\(id)|\(system ?? "")|\(thinking)"
         if sessionKey != key { session = nil; consumed = [] }
@@ -172,11 +173,9 @@ actor LocalModelHost {
         // Reuse the live session when this request continues it by at least its consumed prefix: the
         // agent loop re-sends the whole transcript every turn, so the common case is "same prefix plus
         // one or more new messages", not "identical prefix plus exactly one".
-        let continues: Bool
+        var continues = false
         if session != nil, sessionKey == key, consumed.count <= prior.count {
-            continues = zip(consumed, prior).allSatisfy { $0.text == $1.text && $0.role == $1.role && $0.images == $1.images }
-        } else {
-            continues = false
+            continues = Self.isExtension(of: consumed, by: prior)
         }
 
         let s: MLXLMCommon.ChatSession
@@ -310,6 +309,19 @@ actor LocalModelHost {
         return last ?? stats
     }
 
+    /// Is `prior` the transcript the session holds, plus more? Split out of the call site because the
+    /// three-field comparison in one expression defeated the type checker.
+    private static func isExtension(of consumed: [(role: String, text: String, images: Int)],
+                                    by prior: [LocalTurn]) -> Bool {
+        for (i, was) in consumed.enumerated() {
+            let now = prior[i]
+            if was.role != now.role { return false }
+            if was.text != now.text { return false }
+            if was.images != now.images.count { return false }
+        }
+        return true
+    }
+
     private static func message(_ t: LocalTurn) -> MLXLMCommon.Chat.Message {
         let images: [UserInput.Image] = t.images.compactMap { data in
             CIImage(data: data).map { UserInput.Image.ciImage($0) }
@@ -318,7 +330,8 @@ actor LocalModelHost {
         return .user(t.text, images: images)
     }
 
-    private func publish(model: String?, loading: String?, stats: LocalGenStats? = nil) async {
+    private func publish(model: String? = nil, loading: String? = nil,
+                         stats: LocalGenStats? = nil) async {
         await MainActor.run {
             let st = LocalEngineState.shared
             st.residentModelId = model
