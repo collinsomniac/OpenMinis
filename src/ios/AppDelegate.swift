@@ -22,6 +22,21 @@ private let logger = AppLogger(category: "AppDelegate")
 
 final class AppDelegate: NSObject, UIApplicationDelegate {
 
+    /// [T-nabla-local-mlx-background-download] iOS relaunches the app in the background to deliver
+    /// events for a background URLSession. Until the completion handler is called, the system holds the
+    /// app's background execution time — and if it is never called, iOS stops relaunching us for
+    /// downloads at all. So it is forwarded to the downloader, which calls it once every task's delegate
+    /// method has run.
+    func application(_ application: UIApplication,
+                     handleEventsForBackgroundURLSession identifier: String,
+                     completionHandler: @escaping () -> Void) {
+        if identifier == "nabla.onDeviceModelDownload" {
+            Task { @MainActor in LocalModelDownloader.shared.adopt(completionHandler: completionHandler) }
+        } else {
+            completionHandler()
+        }
+    }
+
     func application(
         _ application: UIApplication,
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil

@@ -11,7 +11,10 @@
 		563D64272C8143C372BFF654 /* LocalModelHost.swift in Sources */ = {isa = PBXBuildFile; fileRef = 905EFCE0D44B84CFAC1FEF5C /* LocalModelHost.swift */; };
 		D93AAA59B349B7286431753C /* LocalMLXProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1A1415E8048456C19CA4C63 /* LocalMLXProvider.swift */; };
 		F50F3EC39B1B20C52FE81C6A /* LocalModelCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5552AEC9DAC8CA7B2B96E44 /* LocalModelCatalog.swift */; };
+		85A1D045CB82FFCD79CC9865 /* LocalModelStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB469E60F843BA11C28002B1 /* LocalModelStore.swift */; };
+		BEEF8491287DDB783F09FB24 /* LocalModelDownloader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5EFE7A95680EF8B26C0FD756 /* LocalModelDownloader.swift */; };
 /* Begin PBXBuildFile section */
+		E7V94204B044E12E0727FEAA /* MLXVLM in Frameworks */ = {isa = PBXBuildFile; productRef = E7VCDD320198745B4A0ED9A7 /* MLXVLM */; };
 		E7A4A01A7F94D56F04805C61 /* Tokenizers in Frameworks */ = {isa = PBXBuildFile; productRef = E7A85954FB16317F4AEC5C85 /* Tokenizers */; };
 		E7ACF4C712D44562426C275D /* HuggingFace in Frameworks */ = {isa = PBXBuildFile; productRef = E7AB10975F348A4FCC535119 /* HuggingFace */; };
 		E7A4A876B4375AEBCCA173C8 /* MLX in Frameworks */ = {isa = PBXBuildFile; productRef = E7A82698A51F17108B357EEC /* MLX */; };
@@ -651,6 +654,8 @@
 		905EFCE0D44B84CFAC1FEF5C /* LocalModelHost.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalMLX/LocalModelHost.swift; sourceTree = "<group>"; };
 		F1A1415E8048456C19CA4C63 /* LocalMLXProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalMLX/LocalMLXProvider.swift; sourceTree = "<group>"; };
 		F5552AEC9DAC8CA7B2B96E44 /* LocalModelCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalMLX/LocalModelCatalog.swift; sourceTree = "<group>"; };
+		EB469E60F843BA11C28002B1 /* LocalModelStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalMLX/LocalModelStore.swift; sourceTree = "<group>"; };
+		5EFE7A95680EF8B26C0FD756 /* LocalModelDownloader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalMLX/LocalModelDownloader.swift; sourceTree = "<group>"; };
 /* Begin PBXFileReference section */
 		0ED149397BEA7E0408C92688 /* GroupVoiceModelsView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = GroupVoiceModelsView.swift; sourceTree = "<group>"; };
 		0F5379380323FA8C6477708C /* GroupSlotPicker.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = GroupSlotPicker.swift; sourceTree = "<group>"; };
@@ -1330,6 +1335,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				E7V94204B044E12E0727FEAA /* MLXVLM in Frameworks */,
 				E7A4A01A7F94D56F04805C61 /* Tokenizers in Frameworks */,
 				E7ACF4C712D44562426C275D /* HuggingFace in Frameworks */,
 				E7A4A876B4375AEBCCA173C8 /* MLX in Frameworks */,
@@ -1591,6 +1597,8 @@
 		E52000030 /* Providers */ = {
 			isa = PBXGroup;
 			children = (
+				5EFE7A95680EF8B26C0FD756 /* LocalModelDownloader.swift */,
+				EB469E60F843BA11C28002B1 /* LocalModelStore.swift */,
 				F5552AEC9DAC8CA7B2B96E44 /* LocalModelCatalog.swift */,
 				F1A1415E8048456C19CA4C63 /* LocalMLXProvider.swift */,
 				905EFCE0D44B84CFAC1FEF5C /* LocalModelHost.swift */,
@@ -2519,6 +2527,7 @@
 			);
 			name = Minis;
 			packageProductDependencies = (
+				E7VCDD320198745B4A0ED9A7 /* MLXVLM */,
 				E7A85954FB16317F4AEC5C85 /* Tokenizers */,
 				E7AB10975F348A4FCC535119 /* HuggingFace */,
 				E7A82698A51F17108B357EEC /* MLX */,
@@ -2823,6 +2832,8 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				BEEF8491287DDB783F09FB24 /* LocalModelDownloader.swift in Sources */,
+				85A1D045CB82FFCD79CC9865 /* LocalModelStore.swift in Sources */,
 				F50F3EC39B1B20C52FE81C6A /* LocalModelCatalog.swift in Sources */,
 				D93AAA59B349B7286431753C /* LocalMLXProvider.swift in Sources */,
 				563D64272C8143C372BFF654 /* LocalModelHost.swift in Sources */,
@@ -4033,6 +4044,11 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		E7VCDD320198745B4A0ED9A7 /* MLXVLM */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E7A3790AA8A9851434A93A3D /* XCRemoteSwiftPackageReference "mlx-swift-lm" */;
+			productName = MLXVLM;
+		};
 		E7A85954FB16317F4AEC5C85 /* Tokenizers */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = E7A01CAB57322D175E54E2BB /* XCRemoteSwiftPackageReference "swift-transformers" */;

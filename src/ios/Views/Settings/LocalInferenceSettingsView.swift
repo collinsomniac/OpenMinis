@@ -8,18 +8,11 @@ import FoundationModels
 
 // MARK: - Local Inference settings
 //
-// [T-nabla-local-inference] The app's first settings area for models that are *not* behind a network
-// provider. Nothing here talks to a cloud service, needs a credential, or writes to
-// ProviderConfigStore — the engine is reached through a sentinel provider id instead
-// (see `SystemVoiceProvider` for the established pattern, and docs/OPENMINIS-ANALYSIS.md §4b).
-//
-// Why a settings page rather than a provider row: on-device models are artefacts on disk with sizes,
-// load costs and a fixed memory budget. A credential form cannot express "2.3 GB, currently resident,
-// 27 tok/s". Everything the rest of the app measures is about tokens and context; nothing was about
-// the hardware, and on a phone the hardware is the binding constraint.
-//
-// Adding a model is deliberately two steps: ask the Hub what the repository actually contains, show
-// that, and only then download. See LocalModelCatalog for why.
+// [T-nabla-local-inference] The app's settings area for models that are *not* behind a network provider.
+// On-device models are artefacts on disk with sizes, load costs and a fixed memory budget — a credential
+// form cannot express "5.16 GB, resident, 11 tok/s, and it will not fit beside anything else". So this
+// page manages the library, the folder it lives in, the memory question, and the measurements that
+// answer "why is it slow?".
 
 @MainActor
 final class LocalInferenceModel: ObservableObject {
@@ -32,9 +25,6 @@ final class LocalInferenceModel: ObservableObject {
     @Published var gpuName: String = "?"
     @Published var gpuWorkingSetBytes: UInt64 = 0
     @Published var appleIntelligenceStatus: String = "unknown"
-    @Published var residentModel: String?
-    @Published var busyModel: String?
-    @Published var progress: Double?
     @Published var errorText: String?
     @Published var downloadField: String = ""
     @Published var freeBytes: Int64 = 0
@@ -44,6 +34,12 @@ final class LocalInferenceModel: ObservableObject {
     @Published var inspectError: String?
     // folder picker
     @Published var showingFolderPicker = false
+    // engine + measurement
+    @Published var resident: String?
+    @Published var loading: String?
+    @Published var stats: LocalGenStats?
+    @Published var benching = false
+    @Published var benchResult: LocalGenStats?
 
     private static let byteFormatter: ByteCountFormatter = {
         let f = ByteCountFormatter()
@@ -55,17 +51,8 @@ final class LocalInferenceModel: ObservableObject {
     nonisolated func format(_ bytes: Int64) -> String { Self.byteFormatter.string(fromByteCount: bytes) }
 
     func refresh() {
-        // The rest of the app gates on "is anything installed" through a short-lived cache, so a change
-        // here must invalidate it — otherwise the provider screens keep showing the previous answer.
         LocalModelStore.invalidateInstalledCache()
         models = LocalModelStore.installed()
-        // [T-nabla-local-mlx-provider] The on-device provider's model list IS the folder. Re-read it
-        // whenever the library may have changed (download, delete, folder move), through the same
-        // refresh path a vendor's /models fetch uses, so the picker never offers a model that is gone.
-        let store = ProviderConfigStore.shared
-        for instance in store.instances where instance.providerType == .localMLX {
-            Task { await store.refreshModels(for: instance) }
-        }
         libraryPath = LocalModelStore.root.path
         usingCustomFolder = LocalModelStore.isUsingCustomFolder
         availableMemoryBytes = Self.availableMemory()
@@ -87,11 +74,79 @@ final class LocalInferenceModel: ObservableObject {
 
         Task {
             let s = await LocalModelHost.shared.status()
-            residentModel = s.resident ? s.modelId : nil
+            resident = s.resident ? s.modelId : nil
+            let st = await MainActor.run { LocalEngineState.shared }
+            if st.lastStats != nil { stats = st.lastStats }
+            // The provider's model list follows the folder, so a change here must reach it.
+            let store = ProviderConfigStore.shared
+            for instance in store.instances where instance.providerType == .localMLX {
+                await store.refreshModels(for: instance)
+            }
         }
     }
 
-    // MARK: - Add a model (check, then confirm, then download)
+    // MARK: - Library actions
+
+    /// Will this model fit, given the weights on disk? Mirrors the engine's admission rule so the UI can
+    /// warn *before* a load is attempted (and before a download is wasted).
+    nonisolated static func fit(_ info: LocalModelInfo, available: Int) -> (fits: Bool, note: String) {
+        let need = Int64(Double(info.bytes) * 1.35)
+        let have = Int64(available)
+        if need <= have { return (true, "fits") }
+        let f = ByteCountFormatter()
+        return (false, "needs ~\(f.string(fromByteCount: need)) — more than the \(f.string(fromByteCount: have)) free")
+    }
+
+    func load(_ id: String) {
+        guard loading == nil else { return }
+        loading = id
+        errorText = nil
+        Task {
+            do {
+                _ = try await LocalModelHost.shared.load(id)
+                errorText = nil
+            } catch {
+                errorText = (error as? LocalizedError)?.errorDescription ?? "\(error)"
+            }
+            loading = nil
+            refresh()
+        }
+    }
+
+    func unload() {
+        Task {
+            await LocalModelHost.shared.unload()
+            stats = nil
+            refresh()
+        }
+    }
+
+    func delete(_ id: String) {
+        Task {
+            // Unload first and WAIT: deleting the files under a resident model would pull the weights out
+            // from under the GPU mid-graph.
+            if resident == id { await LocalModelHost.shared.unload() }
+            try? LocalModelStore.remove(id)
+            refresh()
+        }
+    }
+
+    func measure(_ id: String) {
+        guard !benching else { return }
+        benching = true
+        benchResult = nil
+        Task {
+            do {
+                benchResult = try await LocalModelHost.shared.benchmark(id)
+            } catch {
+                errorText = (error as? LocalizedError)?.errorDescription ?? "\(error)"
+            }
+            benching = false
+            refresh()
+        }
+    }
+
+    // MARK: - Add a model (check, then confirm, then download in the background)
 
     func beginAdd(_ raw: String) {
         let repo = LocalModelCatalog.normalize(raw)
@@ -100,73 +155,28 @@ final class LocalInferenceModel: ObservableObject {
         inspectError = nil
         downloadField = ""
         Task {
-            do {
-                let result = try await LocalModelCatalog.inspect(repo)
-                inspection = result
-            } catch {
-                inspectError = (error as? LocalizedError)?.errorDescription ?? "\(error)"
-            }
+            do { inspection = try await LocalModelCatalog.inspect(repo) }
+            catch { inspectError = (error as? LocalizedError)?.errorDescription ?? "\(error)" }
             inspecting = false
         }
     }
 
-    /// Called when the user confirms the sheet. The download itself goes through the MLX loader, which
-    /// fetches into the Hub cache; `adopt` then materialises the files into the library folder.
-    func confirmDownload(_ id: String) {
-        inspection = nil
-        load(id)
-    }
-
-    func load(_ id: String) {
-        guard busyModel == nil else { return }
-        busyModel = id
-        errorText = nil
-        progress = models.contains(where: { $0.id == id }) ? nil : 0
-        Task {
-            do {
-                _ = try await LocalModelHost.shared.load(id) { p in
-                    Task { @MainActor in self.progress = p }
-                }
-                progress = nil
-                busyModel = nil
-                refresh()
-            } catch {
-                errorText = (error as? LocalizedError)?.errorDescription ?? "\(error)"
-                progress = nil
-                busyModel = nil
-                // A failed load can leave a partial folder behind; clear it so the model can be retried
-                // rather than looking installed while being unusable.
-                try? LocalModelStore.remove(id)
-                refresh()
-            }
+    /// Start the background download. Nothing is loaded — load is a separate, explicit step, because a
+    /// download that also tries to run the model is how a 5 GB file becomes a jetsam kill.
+    func confirmDownload(_ inspection: LocalModelInspection) {
+        self.inspection = nil
+        guard let rev = inspection.revision else {
+            inspectError = "Hugging Face did not report a revision, so the download would not be pinned to a fixed snapshot."
+            return
         }
-    }
-
-    func unload() {
-        Task {
-            await LocalModelHost.shared.unload()
-            refresh()
-        }
-    }
-
-    func delete(_ id: String) {
-        Task {
-            // Unload first and WAIT: deleting the files under a resident model would pull the weights
-            // out from under the GPU mid-graph.
-            if residentModel == id { await LocalModelHost.shared.unload() }
-            try? LocalModelStore.remove(id)
-            refresh()
-        }
+        LocalModelDownloader.shared.start(repo: inspection.id, revision: rev, files: inspection.files)
     }
 
     // MARK: - Folder
 
     func chooseFolder(_ url: URL) {
-        do {
-            try LocalModelStore.setRoot(url)
-        } catch {
-            errorText = "Could not use that folder: \(error.localizedDescription)"
-        }
+        do { try LocalModelStore.setRoot(url) }
+        catch { errorText = "Could not use that folder: \(error.localizedDescription)" }
         refresh()
     }
 
@@ -233,11 +243,15 @@ final class LocalInferenceModel: ObservableObject {
 
 struct LocalInferenceSettingsView: View {
     @StateObject private var model = LocalInferenceModel()
+    @ObservedObject private var downloads = LocalModelDownloader.shared
+    @ObservedObject private var engine = LocalEngineState.shared
 
     var body: some View {
         List {
             modelsSection
+            downloadsSection
             addSection
+            performanceSection
             storageSection
             enginesSection
             hardwareSection
@@ -250,17 +264,14 @@ struct LocalInferenceSettingsView: View {
         .fileImporter(isPresented: $model.showingFolderPicker,
                       allowedContentTypes: [.folder],
                       allowsMultipleSelection: false) { result in
-            // A user-picked folder is outside the sandbox, so it arrives security-scoped; the store
-            // turns it into a bookmark that survives relaunch.
-            if case .success(let urls) = result, let url = urls.first {
-                model.chooseFolder(url)
-            }
+            if case .success(let urls) = result, let url = urls.first { model.chooseFolder(url) }
         }
         .sheet(item: $model.inspection) { inspection in
             LocalModelConfirmView(inspection: inspection,
+                                  availableMemory: model.availableMemoryBytes,
                                   freeBytes: model.freeBytes,
                                   format: model.format) { confirmed in
-                if confirmed { model.confirmDownload(inspection.id) } else { model.inspection = nil }
+                if confirmed { model.confirmDownload(inspection) } else { model.inspection = nil }
             }
         }
     }
@@ -289,6 +300,91 @@ struct LocalInferenceSettingsView: View {
             }
         } header: {
             Text(AppLocalized("On-device models"))
+        } footer: {
+            if let e = model.errorText {
+                Text(e).font(.caption).foregroundStyle(.red)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func modelRow(_ record: LocalModelInfo) -> some View {
+        let isResident = engine.residentModelId == record.id
+        let isLoading = model.loading == record.id
+        let fit = LocalInferenceModel.fit(record, available: model.availableMemoryBytes)
+        VStack(alignment: .leading, spacing: 5) {
+            HStack {
+                Text(record.name).font(.subheadline).fontWeight(.medium)
+                if isResident { Image(systemName: "bolt.fill").font(.caption2).foregroundStyle(Color.green) }
+                Spacer()
+                Text(model.format(record.bytes))
+                    .font(.caption.monospaced()).foregroundStyle(.secondary)
+            }
+            HStack(spacing: 6) {
+                tag(record.modelType)
+                // Capabilities, read from the checkpoint. "can see images" is load-bearing: it is what
+                // makes the app hand a photo to the model instead of a screenshot tool.
+                if record.kind == .vision { tag(AppLocalized("images")) }
+                if record.thinkingCapable { tag(AppLocalized("can think")) }
+                if let ctx = record.contextLength { tag("\(ctx / 1024)k ctx") }
+                if record.kind == .unsupported { tag(AppLocalized("not a chat model")) }
+            }
+            if !fit.fits {
+                Label(fit.note, systemImage: "exclamationmark.triangle.fill")
+                    .font(.caption2).foregroundStyle(Color.orange)
+            }
+            HStack(spacing: 8) {
+                Spacer()
+                if isLoading {
+                    ProgressView().controlSize(.mini)
+                } else if isResident {
+                    Button(AppLocalized("Measure")) { model.measure(record.id) }
+                        .font(.caption).buttonStyle(.bordered)
+                    Button(AppLocalized("Unload")) { model.unload() }
+                        .font(.caption).buttonStyle(.bordered)
+                } else {
+                    Button(AppLocalized("Load")) { model.load(record.id) }
+                        .font(.caption).buttonStyle(.borderedProminent)
+                        .disabled(engine.loadingModelId != nil || record.kind == .unsupported)
+                }
+            }
+        }
+        .padding(.vertical, 2)
+    }
+
+    private var downloadsSection: some View {
+        Group {
+            if !downloads.jobs.isEmpty {
+                Section {
+                    ForEach(downloads.jobs) { job in
+                        VStack(alignment: .leading, spacing: 4) {
+                            HStack {
+                                Text(job.id.split(separator: "/").last.map(String.init) ?? job.id)
+                                    .font(.subheadline).fontWeight(.medium)
+                                Spacer()
+                                Text("\(Int(job.fraction * 100))%")
+                                    .font(.caption.monospaced()).foregroundStyle(.secondary)
+                            }
+                            ProgressView(value: job.fraction)
+                            HStack {
+                                Text("\(model.format(job.doneBytes)) of \(model.format(job.totalBytes))")
+                                    .font(.caption2.monospaced()).foregroundStyle(.secondary)
+                                Spacer()
+                                Button(AppLocalized("Cancel"), role: .destructive) {
+                                    LocalModelDownloader.shared.cancel(repo: job.id)
+                                }
+                                .font(.caption2)
+                            }
+                        }
+                        .padding(.vertical, 2)
+                    }
+                } header: {
+                    Text(AppLocalized("Downloading"))
+                } footer: {
+                    Text(AppLocalized("Downloads continue while the app is in the background."))
+                        .font(.caption)
+                }
+            }
         }
     }
 
@@ -313,21 +409,56 @@ struct LocalInferenceSettingsView: View {
             if let e = model.inspectError {
                 Text(e).font(.caption).foregroundStyle(.red)
             }
-            if let id = model.busyModel {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text((model.progress == nil ? AppLocalized("Loading ") : AppLocalized("Downloading ")) + id)
-                        .font(.caption)
-                    if let p = model.progress { ProgressView(value: p) } else { ProgressView() }
-                }
-            }
-            if let e = model.errorText {
-                Text(e).font(.caption).foregroundStyle(.red)
-            }
         } header: {
             Text(AppLocalized("Add a model"))
         } footer: {
-            Text(AppLocalized("An MLX-format model from Hugging Face. It is checked first, then downloaded once into the library and run offline."))
+            Text(AppLocalized("An MLX-format model from Hugging Face. It is checked first, then downloaded into the library and run offline."))
                 .font(.caption)
+        }
+    }
+
+    private var performanceSection: some View {
+        Section {
+            if let b = model.benchResult {
+                statRow(AppLocalized("Benchmark"), value: speed(b.decodeTokensPerSecond),
+                        detail: AppLocalized("short prompt, no history"))
+            }
+            if let s = model.stats {
+                statRow(AppLocalized("Last turn"), value: speed(s.decodeTokensPerSecond),
+                        detail: "\(s.generatedTokens) tok · TTFT \(Int(s.timeToFirstToken * 1000)) ms")
+                LabeledContent(AppLocalized("Prompt")) {
+                    Text("\(s.promptTokens) tok · \(s.reusedTokens) reused · \(Int(s.prefillSeconds * 1000)) ms prefill")
+                        .font(.caption.monospaced())
+                }
+            } else if model.benchResult == nil {
+                Text(AppLocalized("Load a model and Measure it, or send a message, to see real speeds here."))
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+            if model.benching {
+                HStack(spacing: 8) { ProgressView().controlSize(.mini); Text(AppLocalized("Measuring…")).font(.caption) }
+            }
+            LabeledContent(AppLocalized("Thermal state")) {
+                Text(model.thermalState)
+                    .foregroundStyle(model.thermalState == "nominal" ? Color.green : Color.orange)
+            }
+        } header: {
+            Text(AppLocalized("Performance"))
+        } footer: {
+            Text(AppLocalized("On-device speed is decided by memory bandwidth, so it falls as context grows and when the phone is warm. A short-prompt benchmark is the engine's ceiling; the per-turn line is what you actually get."))
+                .font(.caption)
+        }
+    }
+
+    private func speed(_ tps: Double) -> String {
+        tps > 0 ? String(format: "%.1f tok/s", tps) : "—"
+    }
+
+    private func statRow(_ title: String, value: String, detail: String) -> some View {
+        LabeledContent(title) {
+            VStack(alignment: .trailing, spacing: 1) {
+                Text(value).font(.callout.monospaced()).fontWeight(.medium)
+                Text(detail).font(.caption2).foregroundStyle(.secondary)
+            }
         }
     }
 
@@ -337,12 +468,8 @@ struct LocalInferenceSettingsView: View {
                 Text(model.usingCustomFolder ? AppLocalized("chosen in Files") : AppLocalized("app folder"))
                     .foregroundStyle(.secondary)
             }
-            Text(model.libraryPath)
-                .font(.caption2.monospaced())
-                .foregroundStyle(.secondary)
-            Button {
-                model.showingFolderPicker = true
-            } label: {
+            Text(model.libraryPath).font(.caption2.monospaced()).foregroundStyle(.secondary)
+            Button { model.showingFolderPicker = true } label: {
                 Label(AppLocalized("Choose Folder…"), systemImage: "folder")
             }
             if model.usingCustomFolder {
@@ -351,8 +478,7 @@ struct LocalInferenceSettingsView: View {
                 }
             }
             LabeledContent(AppLocalized("Free space")) {
-                Text(model.freeBytes > 0 ? model.format(model.freeBytes) : "—")
-                    .font(.callout.monospaced())
+                Text(model.freeBytes > 0 ? model.format(model.freeBytes) : "—").font(.callout.monospaced())
             }
         } header: {
             Text(AppLocalized("Storage"))
@@ -365,9 +491,12 @@ struct LocalInferenceSettingsView: View {
     private var enginesSection: some View {
         Section(AppLocalized("Engines")) {
             LabeledContent(AppLocalized("On-device (MLX)")) {
-                if let r = model.residentModel {
+                if let r = engine.residentModelId {
                     Text(AppLocalized("running ") + String(r.split(separator: "/").last ?? ""))
                         .foregroundStyle(Color.green)
+                } else if let l = engine.loadingModelId {
+                    Text(AppLocalized("loading ") + String(l.split(separator: "/").last ?? ""))
+                        .foregroundStyle(Color.secondary)
                 } else {
                     Text(model.models.isEmpty ? AppLocalized("no models") : AppLocalized("ready"))
                         .foregroundStyle(model.models.isEmpty ? Color.secondary : Color.green)
@@ -391,56 +520,19 @@ struct LocalInferenceSettingsView: View {
                      : AppLocalized("not granted — expect ~3.3 GB"))
                     .foregroundStyle(model.memoryEntitlementGranted ? Color.green : Color.orange)
             }
-            LabeledContent(AppLocalized("GPU")) {
-                Text(model.gpuName).font(.callout)
-            }
+            LabeledContent(AppLocalized("GPU")) { Text(model.gpuName).font(.callout) }
             LabeledContent(AppLocalized("GPU working set")) {
                 Text(model.format(Int64(clamping: model.gpuWorkingSetBytes))).font(.callout.monospaced())
-            }
-            LabeledContent(AppLocalized("Thermal state")) {
-                Text(model.thermalState)
-                    .foregroundStyle(model.thermalState == "nominal" ? Color.green : Color.orange)
             }
         }
     }
 
     private var footnoteSection: some View {
         Section {
-            Text(AppLocalized("On-device models run entirely on this device. They use the GPU, count against the memory shown above, and slow down when the phone is warm — expect roughly 20% less throughput on a long run."))
+            Text(AppLocalized("One on-device model is resident at a time: they are large enough that two cannot share the memory budget. Loading a different model unloads the current one first."))
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
-    }
-
-    @ViewBuilder
-    private func modelRow(_ record: LocalModelInfo) -> some View {
-        let isResident = model.residentModel == record.id
-        let isBusy = model.busyModel == record.id
-        VStack(alignment: .leading, spacing: 4) {
-            HStack {
-                Text(record.name).font(.subheadline).fontWeight(.medium)
-                if isResident { Image(systemName: "bolt.fill").font(.caption2).foregroundStyle(Color.green) }
-                Spacer()
-                Text(model.format(record.bytes))
-                    .font(.caption.monospaced()).foregroundStyle(.secondary)
-            }
-            HStack(spacing: 8) {
-                tag(record.modelType)
-                if record.thinkingCapable { tag(AppLocalized("can think")) }
-                Spacer()
-                if isBusy {
-                    ProgressView().controlSize(.mini)
-                } else if isResident {
-                    Button(AppLocalized("Unload")) { model.unload() }
-                        .font(.caption).buttonStyle(.bordered)
-                } else {
-                    Button(AppLocalized("Load")) { model.load(record.id) }
-                        .font(.caption).buttonStyle(.bordered)
-                        .disabled(model.busyModel != nil)
-                }
-            }
-        }
-        .padding(.vertical, 2)
     }
 
     private func tag(_ text: String) -> some View {
@@ -454,24 +546,31 @@ struct LocalInferenceSettingsView: View {
 /// Confirmation before a multi-gigabyte download.
 ///
 /// The point is that the user gets to see what they are about to spend: the real size on disk, how much
-/// of it is weights, whether the repository is even the right format, and whether it will fit beside
-/// whatever is already installed.
+/// of it is weights, whether the repository is even the right format — and whether it will fit, which is
+/// the difference between a model that runs and a process that gets killed.
 struct LocalModelConfirmView: View {
     let inspection: LocalModelInspection
+    let availableMemory: Int
     let freeBytes: Int64
     let format: (Int64) -> String
     let completion: (Bool) -> Void
+
+    private var memoryNote: (ok: Bool, text: String) {
+        let need = Int64(Double(inspection.weightBytes) * 1.35)
+        let f = ByteCountFormatter()
+        if need <= Int64(availableMemory) {
+            return (true, "Weights are \(f.string(fromByteCount: inspection.weightBytes)); it fits in the \(f.string(fromByteCount: Int64(availableMemory))) available.")
+        }
+        return (false, "Weights are \(f.string(fromByteCount: inspection.weightBytes)) and this model needs about \(f.string(fromByteCount: need)) with working room — more than the \(f.string(fromByteCount: Int64(availableMemory))) free. It will download, but loading it will be refused. A 4-bit build of the same model is usually about half the size.")
+    }
 
     var body: some View {
         NavigationStack {
             List {
                 Section {
-                    Text(inspection.name)
-                        .font(.headline)
-                    Text(inspection.id)
-                        .font(.caption.monospaced())
-                        .foregroundStyle(.secondary)
-                    if let rev = inspection.revision {
+                    Text(inspection.name).font(.headline)
+                    Text(inspection.id).font(.caption.monospaced()).foregroundStyle(.secondary)
+                    if let rev = inspection.shortRevision {
                         LabeledContent(AppLocalized("Revision")) {
                             Text(rev).font(.caption.monospaced()).foregroundStyle(.secondary)
                         }
@@ -492,6 +591,15 @@ struct LocalModelConfirmView: View {
                         LabeledContent(AppLocalized("Free space")) {
                             Text(format(freeBytes)).font(.callout.monospaced())
                         }
+                    }
+                }
+
+                Section(AppLocalized("Will it run?")) {
+                    Label {
+                        Text(memoryNote.text).font(.caption)
+                    } icon: {
+                        Image(systemName: memoryNote.ok ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
+                            .foregroundStyle(memoryNote.ok ? Color.green : Color.orange)
                     }
                 }
 

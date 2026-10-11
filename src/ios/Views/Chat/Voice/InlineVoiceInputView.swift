@@ -81,9 +81,6 @@ struct InlineVoiceInputView: View {
     /// REMEMBERED across sessions. Reset to expand only by: (1) switching from text
     /// to voice, (2) sending a message (→ compact). A toggle/drag flips it.
     @ObservedObject private var voiceMode = VoiceModePreference.shared
-    /// Full-screen transcript editor presentation.
-    @State private var showFullEditor = false
-
     private var expanded: Bool {
         get { voiceMode.expanded }
         nonmutating set { voiceMode.expanded = newValue }
@@ -148,7 +145,20 @@ struct InlineVoiceInputView: View {
     }
 
     /// Hard ceiling: the whole panel may not exceed 60% of the screen height.
-    private var maxPanelHeight: CGFloat { UIScreen.main.bounds.height * 0.6 }
+    /// [T-voice-panel-never-clipped] The panel is bottom-anchored, so its TOP is what decides whether
+    /// the transcript can be read: with the keyboard up, `screen * 0.6` plus the keyboard is taller than
+    /// the screen and the first lines end up behind the navigation bar, unreachable by scrolling. Bound
+    /// the height by the space actually left above the keyboard instead.
+    @State private var keyboardTopY: CGFloat = .greatestFiniteMagnitude
+
+    private var maxPanelHeight: CGFloat {
+        let screen = UIScreen.main.bounds.height
+        let topChrome = (UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .first?.keyWindow?.safeAreaInsets.top ?? 0) + 64   // conversation header + margin
+        let available = keyboardTopY - topChrome
+        return max(180, min(screen * 0.6, available))
+    }
 
     /// Tallest the transcript band may grow before it starts scrolling.
     /// [T-ios-voice-transcript-blank-band] Subtract the in-frame chrome too, so
@@ -301,34 +311,6 @@ struct InlineVoiceInputView: View {
         // Compact↔expand toggle (top-left) + globe (top-right). Pinned to the top
         // corners in BOTH modes. Leading/trailing insets = 12 to line up with the
         // bottom toolbar's `+` and send buttons (inputBottomRow padding 12).
-        .overlay(alignment: .topLeading) {
-            VStack(spacing: 8) {
-                expandCollapseButton
-                fullEditorButton
-            }
-            .padding(.top, 10)
-            .padding(.leading, 12)
-        }
-        .sheet(isPresented: $showFullEditor) {
-            VoiceTranscriptEditorSheet(
-                text: Binding(get: { viewModel.transcript },
-                              set: { viewModel.setTranscript($0); inputText = $0 }),
-                isRecording: viewModel.state == .recording,
-                onDone: { showFullEditor = false }
-            )
-        }
-        .overlay(alignment: .topTrailing) {
-            // [voice-correction, experimental] In DEBUG, this corner doubles as the
-            // correction-suggestion affordance (design §15.3.2): once the transcript has
-            // landed, switching the RECOGNITION language is meaningless (the audio is
-            // already transcribed), so the slot is free — and reusing it costs zero new
-            // screen space and no layout reflow, since the sparkles button has exactly the
-            // globe's 30×30 pill geometry.
-            //
-            voiceCorrectionOrLanguageMenu
-                .padding(.top, 10)
-                .padding(.trailing, 12)
-        }
         // Vertical drag controls the panel:
         //  • while editing → drag down dismisses the keyboard / exits editing;
         //  • otherwise → drag down collapses (expand→compact), drag up expands.
@@ -430,6 +412,7 @@ struct InlineVoiceInputView: View {
         // the bg/fg window.
         .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { note in
             let f = (note.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? CGRect) ?? .zero
+            keyboardTopY = f.minY
             VoiceLog.log("[voice-kbd] willShow end=\(Int(f.minY))h\(Int(f.height)) editing=\(viewModel.isEditingTranscript) focused=\(editFocused) panelY=\(Int(lastPanelFrame.minY))…\(Int(lastPanelFrame.maxY))")
         }
         .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardDidShowNotification)) { note in
@@ -437,6 +420,7 @@ struct InlineVoiceInputView: View {
             VoiceLog.log("[voice-kbd] didShow end=\(Int(f.minY))h\(Int(f.height)) editing=\(viewModel.isEditingTranscript) focused=\(editFocused) panelY=\(Int(lastPanelFrame.minY))…\(Int(lastPanelFrame.maxY))")
         }
         .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { _ in
+            keyboardTopY = .greatestFiniteMagnitude
             VoiceLog.log("[voice-kbd] willHide editing=\(viewModel.isEditingTranscript) focused=\(editFocused) panelY=\(Int(lastPanelFrame.minY))…\(Int(lastPanelFrame.maxY))")
         }
         .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardDidHideNotification)) { _ in
@@ -724,7 +708,7 @@ struct InlineVoiceInputView: View {
                             .multilineTextAlignment(.center)
                     }
                 }
-                .padding(.horizontal, 12)
+                .padding(.horizontal, 20)
                 .padding(.vertical, 5)
                 .background(Capsule().fill(Color.orange.opacity(0.12)))
                 .transition(.opacity)
@@ -739,6 +723,15 @@ struct InlineVoiceInputView: View {
             // its right (only when there's text). ──
             ZStack {
                 micButton
+                // [T-voice-controls-below-text] Collapse + the AI-correction/language slot, moved off the
+                // transcript's first lines and into the row that already has space to spare. The text
+                // body now spans the panel's full width.
+                HStack(spacing: 8) {
+                    expandCollapseButton
+                    voiceCorrectionOrLanguageMenu
+                    Spacer()
+                }
+                .padding(.leading, 0)
                 if !viewModel.transcript.isEmpty {
                     HStack {
                         Spacer()
@@ -758,28 +751,6 @@ struct InlineVoiceInputView: View {
             modelChip
         }
         .padding(.top, 6)
-    }
-
-    /// Opens the transcript in a full-screen editor, available in both modes.
-    ///
-    /// [T-voice-full-editor] In the panel the transcript is bounded twice over — by the panel's own
-    /// height and by the band the layout gives the text — so long dictation is always read through a
-    /// keyhole, and while editing, the text view's own scrolling is clipped by that band (the reason the
-    /// top of a long transcript can be hard to reach). A full-screen editor removes the constraint
-    /// rather than working around it: everything visible at once, a caret that is not competing with a
-    /// drag recogniser, and the keyboard's own accessory bar.
-    private var fullEditorButton: some View {
-        Button {
-            showFullEditor = true
-        } label: {
-            Image(systemName: "arrow.up.left.and.arrow.down.right")
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(ChatColors.secondaryText)
-                .frame(width: 30, height: 30)
-                .background(Circle().fill(ChatColors.inputIconBg))
-                .overlay(Circle().strokeBorder(ChatColors.inputIconBorder, lineWidth: 0.5))
-        }
-        .accessibilityLabel(Text("Edit transcript full screen", comment: "Voice: full screen transcript editor"))
     }
 
     /// Compact↔expand toggle. Mirrors the globe's pill styling.
@@ -875,12 +846,6 @@ struct InlineVoiceInputView: View {
                         .multilineTextAlignment(.leading)
                         .fixedSize(horizontal: false, vertical: true)
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 8)
-                        .background(
-                            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                .fill(ChatColors.inputIconBg)
-                        )
                         .background(GeometryReader { geo in
                             Color.clear.preference(key: TranscriptContentHeightKey.self,
                                                    value: geo.size.height)

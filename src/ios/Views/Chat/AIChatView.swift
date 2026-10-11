@@ -414,6 +414,10 @@ struct AIChatView: View {
     /// as "assume there is room", so the label is never missing on the first
     /// frame of the common (wide) case.
     @State private var inputBottomRowWidth: CGFloat = 0
+    /// [T-nabla-local-mlx-send-gate] Sending to an on-device model that is not loaded.
+    @State private var showLoadBeforeSend = false
+    @State private var pendingLocalEntry: ModelEntry?
+    @State private var showFullTextEditor = false
     @Environment(\.scenePhase) private var scenePhase
 
     // MARK: - [T-ipad-composer-resize] Draggable composer height (iPad only)
@@ -838,6 +842,49 @@ struct AIChatView: View {
             Button("Cancel", role: .cancel) {}
         } message: {
             Text("Enhanced cache extends the cache TTL from 5 minutes to 1 hour. Cache writes cost more (2x vs 1.25x base price), but cache reads remain cheap (0.1x). Recommended for long coding sessions where request gaps may exceed 5 minutes.")
+        }
+        .sheet(isPresented: $showFullTextEditor) {
+            VoiceTranscriptEditorSheet(
+                text: Binding(get: { vm.inputText }, set: { vm.inputText = $0 }),
+                isRecording: vm.isProcessing == false && voiceInputActive && speechManager.state == .recording,
+                onDone: { showFullTextEditor = false })
+        }
+        .alert(AppLocalized("Could not load the on-device model"),
+               isPresented: Binding(get: { vm.localEngineError != nil },
+                                    set: { if !$0 { vm.localEngineError = nil } })) {
+            Button(AppLocalized("OK"), role: .cancel) { vm.localEngineError = nil }
+        } message: {
+            Text(vm.localEngineError ?? "")
+        }
+        .alert(AppLocalized("Model not loaded"), isPresented: $showLoadBeforeSend) {
+            Button(AppLocalized("Load and Send")) {
+                guard let entry = pendingLocalEntry else { return }
+                pendingLocalEntry = nil
+                Task {
+                    do {
+                        _ = try await LocalModelHost.shared.load(entry.model.id)
+                        await MainActor.run { performSend() }
+                    } catch {
+                        // The engine refuses a model that cannot fit, and says why. Surfacing that here
+                        // is the whole point of refusing: a readable message beats a jetsam kill.
+                        await MainActor.run {
+                            vm.presentLocalEngineError((error as? LocalizedError)?.errorDescription
+                                                       ?? error.localizedDescription)
+                        }
+                    }
+                }
+            }
+            Button(AppLocalized("Cancel"), role: .cancel) { pendingLocalEntry = nil }
+        } message: {
+            let loaded = LocalEngineState.shared.residentModelId.map {
+                $0.split(separator: "/").last.map(String.init) ?? $0
+            }
+            let chosen = pendingLocalEntry?.model.displayName
+                ?? pendingLocalEntry?.model.id ?? "—"
+            let instanceLabel = pendingLocalEntry
+                .flatMap { ProviderConfigStore.shared.instance(for: $0.providerInstanceId)?.label }
+                ?? "On this device"
+            Text("“\(chosen)” is not loaded. Currently loaded: \(loaded ?? "no models loaded").\n\nLoad it for “\(instanceLabel)” and send?")
         }
         .alert(AppLocalized("Context Near Capacity"), isPresented: Binding(get: { vm.showCompactBeforeSendPrompt }, set: { vm.showCompactBeforeSendPrompt = $0 })) {
             Button(AppLocalized("Compact & Send")) {
@@ -3516,8 +3563,20 @@ struct AIChatView: View {
         }
     }
 
-    /// Mic button plus the attached language-picker sheet.
+    /// Mic button, the full-screen editor, plus the attached language-picker sheet.
+    ///
+    /// [T-voice-full-editor-entry] The editor button lives here, beside the mic/keyboard toggle, so it is
+    /// in the same place in BOTH modes. It was previously pinned inside the voice panel, which meant it
+    /// vanished the moment the user switched to the keyboard — and the panel's corners are exactly where
+    /// the transcript needs its width back.
     private var micButtonContainer: some View {
+        HStack(spacing: 8) {
+            fullEditorButton
+            micButton
+        }
+    }
+
+    private var micButton: some View {
         MicButton(speechManager: speechManager, inputFocused: $inputFocused, onTap: {
             if voiceInputActive {
                 // Already in voice mode — the "T" button switches back to text.
@@ -3537,6 +3596,24 @@ struct AIChatView: View {
                 withAnimation(.easeInOut(duration: 0.2)) { voiceInputActive = true }
             }
         }, isVoiceActive: voiceInputActive)
+    }
+
+    /// Opens the composer's text in a full-screen editor — the same editor the voice panel uses, so
+    /// typing, dictating and editing are one document in both modes (the panel's transcript and
+    /// `vm.inputText` mirror each other).
+    private var fullEditorButton: some View {
+        Button {
+            showFullTextEditor = true
+        } label: {
+            Image(systemName: "arrow.up.left.and.arrow.down.right")
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(ChatColors.secondaryText)
+                .frame(width: 34, height: 34)
+                .background(ChatColors.inputIconBg)
+                .clipShape(Circle())
+                .overlay(Circle().stroke(ChatColors.inputIconBorder, lineWidth: 0.5))
+        }
+        .accessibilityLabel(Text("Edit text full screen", comment: "Composer: open full screen editor"))
     }
 
     /// Send / Enqueue / Stop circular button.
@@ -4888,6 +4965,20 @@ struct AIChatView: View {
     private func performSend() {
         // Intercept slash commands — execute instead of sending to LLM
         if vm.tryExecuteInputAsSlashCommand() { return }
+
+        // [T-nabla-local-mlx-send-gate] On-device models are not always resident: one is loaded at a
+        // time, and a model can also have been unloaded deliberately or by a memory warning. Sending
+        // into a cold engine used to be how the app was killed — the load happened mid-turn, on top of
+        // whatever was already resident. Ask first, and say what is loaded now, so the choice (and the
+        // unload it implies) is the user's.
+        if let entry = vm.resolveCurrentEntry(),
+           let instance = ProviderConfigStore.shared.instance(for: entry.providerInstanceId),
+           instance.providerType == .localMLX,
+           LocalEngineState.shared.residentModelId != entry.model.id {
+            pendingLocalEntry = entry
+            showLoadBeforeSend = true
+            return
+        }
 
         minisLogger.info("🔑DRAFT performSend vm=\(vm.vmInstanceId) vm.sessionId=\(vm.sessionId ?? "nil") draftId=\(draftId ?? "nil") inputText='\(String(vm.inputText.prefix(50)))' isProcessing=\(vm.isProcessing)")
         // Keep SwiftUI focus when a hardware keyboard is connected — dropping

@@ -19,6 +19,8 @@ struct LocalModelFile: Sendable, Hashable {
 /// Everything known about a repository before it is downloaded.
 struct LocalModelInspection: Sendable, Identifiable {
     let id: String                  // repo id, "org/name"
+    /// FULL commit sha. Needed twice over: the resolve URL must pin the exact revision (a moved branch
+    /// would otherwise change what a half-finished download is fetching), and the sheet shows a prefix.
     let revision: String?
     let files: [LocalModelFile]
     let totalBytes: Int64
@@ -27,6 +29,7 @@ struct LocalModelInspection: Sendable, Identifiable {
     let hasWeights: Bool
 
     var name: String { id.split(separator: "/").last.map(String.init) ?? id }
+    var shortRevision: String? { revision.map { String($0.prefix(12)) } }
 
     /// Whether the repository looks like a loadable MLX-format model: a `config.json` plus at least one
     /// `.safetensors` shard beside it. A repo can be perfectly valid for the Hub and still be unusable
@@ -141,7 +144,7 @@ enum LocalModelCatalog {
         let weights = files.filter { $0.name.hasSuffix(".safetensors") }
         return LocalModelInspection(
             id: repo,
-            revision: (obj["sha"] as? String).map { String($0.prefix(12)) },
+            revision: obj["sha"] as? String,
             files: files.sorted { $0.size > $1.size },
             totalBytes: files.reduce(0) { $0 + $1.size },
             weightBytes: weights.reduce(0) { $0 + $1.size },

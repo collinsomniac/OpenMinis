@@ -1229,6 +1229,11 @@ final class AIChatViewModel: ObservableObject, SpeechControlling {
     @Published var isCompacting = false
     /// When true, shows a prompt asking user to compact before sending.
     @Published var showCompactBeforeSendPrompt = false
+    /// [T-nabla-local-mlx-send-gate] A failure the on-device engine refused on purpose (most often: the
+    /// model cannot fit in memory). Surfaced verbatim, because the message explains what to do instead.
+    @Published var localEngineError: String?
+
+    func presentLocalEngineError(_ message: String) { localEngineError = message }
     /// [T-chat-auto-compact-opt-in] Global (cross-session) opt-in: when the
     /// context-capacity threshold fires, compact automatically instead of
     /// prompting — the same no-UI path shortcut sessions already use. Set
