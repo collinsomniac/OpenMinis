@@ -651,8 +651,12 @@ final class VoiceInputViewModel: ObservableObject {
     /// and the panel simply returns to idle.
     private func handleSegment(_ audioData: Data, reason: SegmentEndReason) {
         guard !audioData.isEmpty else { return }
-        if isEditingTranscript { return }
-
+        // [T-voice-dictation-while-editing] The third and coarsest drop path: a VAD segment arriving
+        // while the transcript editor was open returned here, before the audio reached
+        // `pendingSegments`. A long dictation arrives as a sequence of ~5s segments, so with the editor
+        // open EVERY one of them was discarded — which is why "talk for a few minutes" lost everything
+        // rather than losing a word. Nothing here needs to be suppressed: the transcription result is
+        // appended to the transcript, so an open editor is not a conflict.
         pendingSegments.append(audioData)
         let totalSeconds = pendingSegments.reduce(0.0) { $0 + Self.wavDurationSeconds($1) }
         VoiceLog.log("segment received reason=\(reason); pending speech=\(String(format: "%.1f", totalSeconds))s (need \(Int(Self.minSegmentSeconds))s)")
@@ -845,9 +849,18 @@ final class VoiceInputViewModel: ObservableObject {
     /// captured. Results append in completion order.
     private func transcribeAudio(_ audioData: Data) {
         guard !audioData.isEmpty else { return }
-        // While the user hand-edits the transcript, drop new speech so it can't
-        // overwrite their corrections.
-        if isEditingTranscript { return }
+        // [T-voice-dictation-while-editing] Speech is transcribed even while the user is hand-editing
+        // the transcript, and the result is APPENDED.
+        //
+        // This used to return early whenever `isEditingTranscript` was set, so that new speech could not
+        // "overwrite their corrections". The intent is right; the mechanism was not. The result path
+        // appends (`transcript + " " + text`), so it cannot overwrite anything the user typed — the
+        // early return did not protect the edit, it destroyed the audio. Dictate for minutes with the
+        // editor open and the entire utterance vanished with no error pill and no transcript change,
+        // which is indistinguishable from the app losing it.
+        //
+        // Silently discarding captured speech is the worst failure mode available here. Appending is
+        // non-destructive AND is what the user expects to see land in the box they are editing.
 
         // Do NOT change `state` here. Transcription runs in the background while
         // the mic keeps capturing, so the button's visual must keep following the
@@ -946,18 +959,21 @@ final class VoiceInputViewModel: ObservableObject {
                     self.canManualRetry = false
                 }
             }
-            if generation == self.transcriptGeneration,
-               !text.isEmpty, !self.isEditingTranscript {
+            if generation == self.transcriptGeneration, !text.isEmpty {
+                // [T-voice-dictation-while-editing] Appends whether or not the editor is open. The
+                // previous `!isEditingTranscript` term here discarded a completed transcription — the
+                // second half of the same bug — and the `.droppedWhileEditing` report below only
+                // explained the loss after it had already happened. Appending cannot clobber manual
+                // corrections, so there is nothing to protect against.
+                let wasEditing = self.isEditingTranscript
                 self.transcript = self.transcript.isEmpty ? text : self.transcript + " " + text
-                VoiceLog.log("UI update: text=\"\(self.transcript)\"")
+                VoiceLog.log("UI update (editing=\(wasEditing)): text=\"\(self.transcript)\"")
                 self.onTranscript?(self.transcript)
             } else if generation != self.transcriptGeneration {
                 // Superseded by clearAndRearm()/cancelTranscription() (e.g. the
                 // user sent the message while this was in flight). Expected —
                 // record it, but don't nag.
                 VoiceLog.log("[voice-failure] staleGeneration: result dropped (gen \(generation) != \(self.transcriptGeneration))")
-            } else if self.isEditingTranscript {
-                self.report(.droppedWhileEditing)
             } else if !attemptFailed {
                 // [T-voice-input-failure-feedback] (#134) The request SUCCEEDED
                 // and returned an empty string. This is the path that used to
