@@ -647,8 +647,8 @@
 
 		C92EA6D159071E94AA876074 /* AppGroupResolver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppGroupResolver.swift; sourceTree = "<group>"; };
 		6ABCB9D16E6EB9576BD997B6 /* LocalInferenceSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalInferenceSettingsView.swift; sourceTree = "<group>"; };
-		905EFCE0D44B84CFAC1FEF5C /* LocalModelHost.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalModelHost.swift; sourceTree = "<group>"; };
-		F1A1415E8048456C19CA4C63 /* LocalMLXProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalMLXProvider.swift; sourceTree = "<group>"; };
+		905EFCE0D44B84CFAC1FEF5C /* LocalModelHost.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalMLX/LocalModelHost.swift; sourceTree = "<group>"; };
+		F1A1415E8048456C19CA4C63 /* LocalMLXProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalMLX/LocalMLXProvider.swift; sourceTree = "<group>"; };
 /* Begin PBXFileReference section */
 		0ED149397BEA7E0408C92688 /* GroupVoiceModelsView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = GroupVoiceModelsView.swift; sourceTree = "<group>"; };
 		0F5379380323FA8C6477708C /* GroupSlotPicker.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = GroupSlotPicker.swift; sourceTree = "<group>"; };
@@ -1589,6 +1589,8 @@
 		E52000030 /* Providers */ = {
 			isa = PBXGroup;
 			children = (
+				F1A1415E8048456C19CA4C63 /* LocalMLXProvider.swift */,
+				905EFCE0D44B84CFAC1FEF5C /* LocalModelHost.swift */,
 				E52000011 /* LLMTypes.swift */,
 				E52000012 /* LLMError.swift */,
 				E5OARC030 /* OAuthRefreshCoordinator.swift */,

@@ -64,6 +64,24 @@ def app_sources_phase_id(text: str) -> str | None:
 
 t = PBX.read_text()
 
+# Resolve the group FIRST: the file reference's `path` must be relative to the group it is attached
+# to, and in this project the groups carry the directory (`Providers` has `path = Providers`).
+# A reference with no group at all resolves against SOURCE_ROOT instead, so a file created here as
+# "LocalModelHost.swift" was looked for at src/ios/LocalModelHost.swift and the build failed with
+# "Build input files cannot be found" — the same class of silent-miss as the wrong Sources phase.
+parts = [p for p in GROUP.split("/") if p]
+group_id, depth = None, 0
+for i in range(len(parts), 0, -1):
+    gm = re.search(rf'([0-9A-F]{{8,24}}) /\* {re.escape(parts[i - 1])} \*/ = \{{\n\s*isa = PBXGroup;', t)
+    if gm:
+        group_id, depth = gm.group(1), i
+        break
+path_prefix = "/".join(parts[depth:])
+if group_id:
+    print(f"group {GROUP} -> {group_id} (path prefix '{path_prefix or '.'}')")
+else:
+    print(f"WARNING: no group found for {GROUP}; files will resolve against SOURCE_ROOT")
+
 phase_id = app_sources_phase_id(t)
 print(f"app target Sources phase: {phase_id}")
 
@@ -71,6 +89,7 @@ added = []
 for rel in FILES:
     rel = rel.replace("\\", "/")
     name = rel.split("/")[-1]
+    file_path = f"{path_prefix}/{name}" if path_prefix else name
     fref, bref = uid("fref:" + rel), uid("bref:" + rel)
     ext = rel.rsplit(".", 1)[-1]
     ftype = {"swift": "sourcecode.swift", "m": "sourcecode.c.objc", "h": "sourcecode.c.h",
@@ -78,10 +97,10 @@ for rel in FILES:
     did = []
 
     # 1. file reference
-    if f"path = {name};" not in t:
+    if f"path = {file_path};" not in t:
         s = t.index("/* Begin PBXFileReference section */")
         t = t[:s] + (f'\t\t{fref} /* {name} */ = {{isa = PBXFileReference; lastKnownFileType = {ftype}; '
-                     f'path = {name}; sourceTree = "<group>"; }};\n') + t[s:]
+                     f'path = {file_path}; sourceTree = "<group>"; }};\n') + t[s:]
         did.append("fileRef")
 
     # 2. build file (the definition the phase refers to)
@@ -99,13 +118,11 @@ for rel in FILES:
             did.append("phase")
 
     # 4. group child (navigation only)
-    leaf = GROUP.split("/")[-1]
-    gm = re.search(rf'/\* {re.escape(leaf)} \*/ = \{{\n(\s*)isa = PBXGroup;.*?\n\s*children = \(\n(.*?)\n(\s*)\);',
-                   t, re.S)
-    if gm and f"{fref} /* {name} */," not in t:
-        indent = gm.group(1) + "\t"
-        t = t[:gm.start(2)] + f"\n{indent}{fref} /* {name} */," + t[gm.start(2):]
-        did.append("group")
+    if group_id and f"{fref} /* {name} */," not in t:
+        gm = re.search(re.escape(group_id) + r' /\* [^*]+ \*/ = \{\n\s*isa = PBXGroup;.*?children = \(\n', t, re.S)
+        if gm:
+            t = t[:gm.end()] + f"\t\t\t\t{fref} /* {name} */,\n" + t[gm.end():]
+            did.append("group")
 
     print(f"   {name}: {', '.join(did) if did else 'already complete'}")
     added.append(name)
