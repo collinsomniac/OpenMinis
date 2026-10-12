@@ -68,6 +68,29 @@ jobs:
       - name: Prepare for sideloading
         run: python3 scripts/prepare_sideload.py src/ios
 
+      # 26 minutes of the 28-minute run was the Build step, and none of it was cached: every run
+      # re-cloned and re-compiled mlx-swift (Metal kernels included), mlx-swift-lm, swift-transformers,
+      # swift-huggingface and the whole app from cold. The native-dep cache below already works
+      # ("Build native deps" shows as skipped), so the same treatment applies here.
+      #
+      # DerivedData holds the SwiftPM checkouts (SourcePackages) *and* every compiled artifact. A warm
+      # restore turns the dependency rebuild into an incremental build. The key is deliberately
+      # rolling: cache entries are immutable per key, so including the run number writes a fresh
+      # snapshot each run while restore-keys fall back to the most recent one — that is what keeps the
+      # hit rate high instead of freezing an ancient cache forever.
+      - name: Cache Swift packages + DerivedData
+        id: dd-cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            build/dd/SourcePackages
+            build/dd/Build
+            build/dd/ModuleCache.noindex
+          key: dd-v1-${{ hashFiles('src/ios/Minis.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved', 'src/ios/Minis.xcodeproj/project.pbxproj') }}-${{ github.run_number }}
+          restore-keys: |
+            dd-v1-${{ hashFiles('src/ios/Minis.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved', 'src/ios/Minis.xcodeproj/project.pbxproj') }}-
+            dd-v1-
+
       - name: Build
         run: |
           set -o pipefail
@@ -79,8 +102,11 @@ jobs:
           xcodebuild -project src/ios/Minis.xcodeproj -scheme Minis \
             -configuration Release -destination 'generic/platform=iOS' \
             -derivedDataPath build/dd \
+            -parallelizeTargets \
             -skipMacroValidation -skipPackagePluginValidation \
             CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO \
+            COMPILER_INDEX_STORE_ENABLE=NO \
+            DEBUG_INFORMATION_FORMAT=dwarf \
             CURRENT_PROJECT_VERSION=$BUILD \
             'OTHER_SWIFT_FLAGS=$(inherited) -Xfrontend -solver-expression-time-threshold=600 -Xfrontend -solver-memory-threshold=2000000000' \
             build 2>&1 | tee build.log | grep -E "error:|BUILD (SUCCEEDED|FAILED)" | head -200
@@ -97,6 +123,15 @@ jobs:
           set -e
           APP=$(find build/dd/Build/Products -maxdepth 2 -name "*.app" -type d | head -1)
           echo "app: $APP"
+          # [T-ci-pack-stale-product] With a warm DerivedData cache a *previous* build's .app can be
+          # sitting in the products directory. Packing that on a failed or partial build would ship the
+          # old binary under the new release tag — the same mistake that once installed build 36 while
+          # the release said 37. Assert the product is this run's before touching it.
+          APP_BUILD=$(/usr/libexec/PlistBuddy -c "Print CFBundleVersion" "$APP/Info.plist")
+          if [ "$APP_BUILD" != "${{ github.run_number }}" ]; then
+            echo "::error::refusing to package: product CFBundleVersion=$APP_BUILD but this run is ${{ github.run_number }}"
+            exit 1
+          fi
           # ad-hoc sign with the reduced entitlements so the sideload signer sees what to request
           codesign -f -s - --entitlements src/ios/Minis.entitlements "$APP"
           mkdir -p Payload && cp -R "$APP" Payload/
