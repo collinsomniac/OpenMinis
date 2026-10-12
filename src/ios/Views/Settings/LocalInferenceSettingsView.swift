@@ -471,8 +471,6 @@ struct LocalInferenceSettingsView: View {
                     }
                 } header: {
                     Text(AppLocalized("Downloading"))
-                } header: {
-                    Text(AppLocalized("Downloading"))
                 } footer: {
                     VStack(alignment: .leading, spacing: 4) {
                         Text(AppLocalized("Downloads continue while the app is in the background."))
