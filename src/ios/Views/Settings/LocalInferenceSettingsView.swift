@@ -36,7 +36,8 @@ final class LocalInferenceModel: ObservableObject {
     @Published var lowPowerMode = false
     @Published var batteryLevel: Int = -1
     @Published var batteryState: String = "?"
-    @Published var kvPrecision: LocalKVCachePreference = .eightBit(from: 2048)
+    @Published var sampling: LocalSamplingPreference = LocalSamplingPreference.current
+    @Published var kvPrecision: LocalKVCachePreference = LocalKVCachePreference.current
     // add-model flow
     @Published var inspecting = false
     @Published var inspection: LocalModelInspection?
@@ -552,11 +553,14 @@ struct LocalInferenceSettingsView: View {
         Section {
             if let b = model.benchResult {
                 statRow(AppLocalized("Benchmark"), value: speed(b.decodeTokensPerSecond),
-                        detail: AppLocalized("short prompt, no history"))
+                        detail: b.sampledTokensPerSecondIsSamePath
+                            ? AppLocalized("short prompt, no history")
+                            : "\(AppLocalized("greedy")) · \(speed(b.sampledDecodeTokensPerSecond)) \(AppLocalized("with model sampling"))")
             }
             if let b = model.benchContextResult {
                 statRow(AppLocalized("Benchmark @ 8k"), value: speed(b.decodeTokensPerSecond),
-                        detail: "\(b.promptTokens) tok prompt · \(Int(b.prefillTokensPerSecond)) tok/s prefill · KV \(b.kvBits)-bit")
+                        detail: "\(b.promptTokens) tok prompt · \(Int(b.prefillTokensPerSecond)) tok/s prefill · KV \(b.kvBits)-bit"
+                            + (b.sampledTokensPerSecondIsSamePath ? "" : " · \(speed(b.sampledDecodeTokensPerSecond)) sampled"))
             }
             if let s = model.stats {
                 statRow(AppLocalized("Last turn"), value: speed(s.decodeTokensPerSecond),
@@ -666,6 +670,15 @@ struct LocalInferenceSettingsView: View {
                 Text("8-bit").tag(LocalKVCachePreference.eightBit(from: 0))
                 Text("8-bit after 2k").tag(LocalKVCachePreference.eightBit(from: 2048))
                 Text("4-bit after 2k").tag(LocalKVCachePreference.fourBit(from: 2048))
+            }
+            Picker(AppLocalized("Sampling"), selection: Binding(
+                get: { model.sampling },
+                set: { newValue in
+                    model.sampling = newValue
+                    UserDefaults.standard.set(newValue.rawValue, forKey: LocalSamplingPreference.key)
+                })) {
+                Text(AppLocalized("Model default")).tag(LocalSamplingPreference.model)
+                Text(AppLocalized("Greedy (fastest)")).tag(LocalSamplingPreference.greedy)
             }
             Button {
                 model.measure(engine.residentModelId ?? model.models.first?.id ?? "", contextTokens: 8192)

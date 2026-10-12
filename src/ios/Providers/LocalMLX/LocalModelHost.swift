@@ -194,11 +194,14 @@ actor LocalModelHost {
             params.quantizedKVStart = kv.startTokens
         }
         let sampling = info.sampling
-        params.temperature = temperature ?? sampling.temperature
-        // 1.0 unless the model asked for a small top-p AND has no cheaper filter to use instead.
-        params.topP = sampling.topP
-        params.topK = sampling.topK
-        params.minP = sampling.minP
+        let preferGreedy = LocalSamplingPreference.current == .greedy
+        params.temperature = preferGreedy ? 0 : (temperature ?? sampling.temperature)
+        // 1.0 unless the model asked for a small top-p AND has no cheaper filter to use instead. Note
+        // that `topK` alone still routes MLX to the sort-based sampler, so this only removes the top-p
+        // half of the cost; the Sampling setting is what removes the rest.
+        params.topP = preferGreedy ? 1.0 : sampling.topP
+        params.topK = preferGreedy ? 0 : sampling.topK
+        params.minP = preferGreedy ? 0 : sampling.minP
         params.repetitionPenalty = sampling.repetitionPenalty
 
         // [T-nabla-local-mlx-session-policy] Only the model and the thinking mode force a new session.
@@ -410,7 +413,23 @@ actor LocalModelHost {
     /// K/V helps or hurts, since MLX's quantised attention path dequantises before the matmul.
     func benchmark(_ id: String, contextTokens: Int = 0, maxTokens: Int = 128) async throws -> LocalGenStats {
         LocalTurnLog.note("benchmark start \(id) ctx=\(contextTokens) kv=\(LocalKVCachePreference.current.displayBits)")
-        var stats = LocalGenStats(model: id)
+
+        // Two passes, because the difference between them *is* the sampler's cost: the first is argmax
+        // (no filter, no sort), the second is what the checkpoint actually asks for. Reporting only one of
+        // them either hides the cost or overstates what a real turn achieves.
+        let greedy = try await runBenchmark(id, contextTokens: contextTokens,
+                                            maxTokens: maxTokens, greedy: true)
+        let sampled = try await runBenchmark(id, contextTokens: contextTokens,
+                                             maxTokens: maxTokens, greedy: false)
+
+        var out = greedy
+        out.sampledDecodeTokensPerSecond = sampled.decodeTokensPerSecond
+        out.sampledTokensPerSecondIsSamePath = abs(sampled.decodeTokensPerSecond - greedy.decodeTokensPerSecond) < 0.05
+        return out
+    }
+
+    private func runBenchmark(_ id: String, contextTokens: Int, maxTokens: Int,
+                              greedy: Bool) async throws -> LocalGenStats {
         var text = "Count from 1 to 40 in words, comma separated."
         if contextTokens > 0 {
             // The engine reports the exact prompt length, so this only has to be approximately right.
@@ -422,12 +441,16 @@ actor LocalModelHost {
         let history = [LocalTurn(role: "user", text: text)]
         // A fresh session every time: reusing one would reuse a cache and flatter the number.
         session = nil; sessionKey = nil; consumed = []
+        let previous = LocalSamplingPreference.current
+        UserDefaults.standard.set(greedy ? LocalSamplingPreference.greedy.rawValue
+                                         : LocalSamplingPreference.model.rawValue,
+                                  forKey: LocalSamplingPreference.key)
+        defer { UserDefaults.standard.set(previous.rawValue, forKey: LocalSamplingPreference.key) }
         try await stream(modelId: id, system: nil, history: history,
-                         maxTokens: maxTokens, temperature: 0, thinking: false) { ev in
+                         maxTokens: maxTokens, temperature: nil, thinking: false) { ev in
             if case .done = ev {}
         }
-        let last = await MainActor.run { LocalEngineState.shared.lastStats }
-        return last ?? stats
+        return await MainActor.run { LocalEngineState.shared.lastStats } ?? LocalGenStats(model: id)
     }
 
     /// How the app's transcript relates to what this session has already consumed.
@@ -543,6 +566,28 @@ actor LocalModelHost {
 /// is: K/V is re-read for every generated token, so its size sets the decode rate once the conversation
 /// is long. Full precision is the quality-safe default for short chats; quantisation is where the long
 /// -context speed comes from.
+/// Which logit filter the engine applies when choosing the next token.
+///
+/// [T-nabla-local-mlx-sampler-cost] This is a real speed setting, not a taste setting. MLX selects its
+/// sampler from which filters are active (`GenerateParameters.sampler()`): `temperature == 0` gives
+/// `ArgMaxSampler` (free), no filter at all gives `CategoricalSampler` (softmax + one draw), and **any** of
+/// topP/topK/minP gives `TopPSampler`, which implements truncation with a full-vocabulary sort
+/// (151,936 entries for Qwen3, 248,320 for Qwen3.5) plus a scatter — once per generated token. Most
+/// checkpoints declare `top_k`, so a chat turn is very likely paying that per token.
+///
+/// "Model sampling" is the honest default (it is what the checkpoint asks for, and a 0.6B needs the
+/// truncation). Greedy exists so the cost is measurable on a real turn rather than argued about.
+enum LocalSamplingPreference: String, CaseIterable {
+    case model
+    case greedy
+
+    static let key = "nabla.localInference.sampling"
+
+    static var current: LocalSamplingPreference {
+        LocalSamplingPreference(rawValue: UserDefaults.standard.string(forKey: key) ?? "") ?? .model
+    }
+}
+
 enum LocalKVCachePreference: Hashable {
     /// The context a fit check should assume when a model's own maximum is far beyond what fits.
     static let assumedContextTokens = 8192
