@@ -392,7 +392,7 @@ actor LocalModelHost {
 /// is: K/V is re-read for every generated token, so its size sets the decode rate once the conversation
 /// is long. Full precision is the quality-safe default for short chats; quantisation is where the long
 /// -context speed comes from.
-enum LocalKVCachePreference {
+enum LocalKVCachePreference: Hashable {
     /// The context a fit check should assume when a model's own maximum is far beyond what fits.
     static let assumedContextTokens = 8192
 
