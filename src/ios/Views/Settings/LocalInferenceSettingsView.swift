@@ -569,6 +569,12 @@ struct LocalInferenceSettingsView: View {
                     Text("\(s.promptTokens) tok · \(s.reusedTokens) reused · \(Int(s.prefillSeconds * 1000)) ms prefill")
                         .font(.caption.monospaced())
                 }
+                if s.tokenBudget > 0 {
+                    LabeledContent(AppLocalized("Output budget")) {
+                        Text("\(s.tokenBudget) tok")
+                            .font(.caption.monospaced())
+                    }
+                }
                 if !s.reuseNote.isEmpty {
                     LabeledContent(AppLocalized("Cache")) {
                         Text(s.reuseNote).font(.caption2).foregroundStyle(.secondary)

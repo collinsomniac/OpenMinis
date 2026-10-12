@@ -65,7 +65,16 @@ struct LocalMLXProvider: LLMProvider {
 struct LocalMLXAgentProvider: AgentProvider {
     var name: String { "On-Device" }
     let model: LLMModel
-    var defaultMaxTokens: Int { 4096 }
+    /// What this provider asks for when the model entry has no output cap of its own.
+    ///
+    /// [T-nabla-local-mlx-budget] This was 4096, and the agent path additionally clamped *whatever the app
+    /// asked for* down to 4096 (8192 with thinking). That reproduced the exact bug the app's own
+    /// `dynamicMaxTokens` comment warns about: a per-model override set by the user was silently ignored,
+    /// and every reply was cut off at the same place regardless of the model or the context. The app
+    /// already computes `min(model cap ?? provider default, contextWindow − inputTokens)` with a floor and
+    /// a global ceiling, so the provider's job is only to supply an honest default — the limit that
+    /// actually binds on a phone is derived by the engine from memory (see `LocalModelHost.stream`).
+    var defaultMaxTokens: Int { 8192 }
 
     func streamAgentMessageClamped(messages: [AgentMessage], systemPrompt: String?,
                                    tools: [AgentToolDefinition], maxTokens: Int,
@@ -132,7 +141,9 @@ struct LocalMLXAgentProvider: AgentProvider {
 
         let id = model.id
         let thinking = thinkingLevel.isEnabled && (model.supportsReasoning ?? false)
-        let budget = min(maxTokens, thinking ? 8192 : 4096)
+        // No local clamp: the app's budget is already context-aware, and the engine reduces it further
+        // only when the device cannot hold the KV for it (reported in Performance as the output budget).
+        let budget = maxTokens
         // nil temperature = the model's own generation_config decides (see LocalSampling: this is also
         // where the expensive full-vocabulary top-p sort is avoided for small models).
         // nil = let the checkpoint's own generation_config decide.

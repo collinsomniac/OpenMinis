@@ -161,6 +161,21 @@ enum LocalModelStore {
     /// overstated small models and understated nothing — the real second term is the KV cache, and it is
     /// knowable from the config (`kvBytesPerToken`). Weighting weights instead produced a warning that a
     /// 5.14 GB model "needs 6.93 GB" when in truth it needs ~5.7 GB and would have fitted.
+    /// How many tokens of context fit in `freeBytes` alongside this model, inverting `runCost`.
+    ///
+    /// Used to derive the output budget from the device rather than from a constant: the K/V of the tokens
+    /// about to be generated has to fit next to the weights, and past that point the process is killed or
+    /// crawls. Sharing the arithmetic with `runCost` keeps the admission check and the budget consistent.
+    nonisolated static func affordableContextTokens(for info: LocalModelInfo, kvBits: Int,
+                                                    freeBytes: Int64) -> Int {
+        let kvScale = Double(kvBits) / 16.0
+        let perToken = Double(info.kvBytesPerToken) * kvScale
+        guard perToken > 0 else { return 0 }
+        let working: Int64 = 320 * 1024 * 1024
+        let room = Double(freeBytes - info.bytes - working)
+        return room > 0 ? Int(room / perToken) : 0
+    }
+
     nonisolated static func runCost(for info: LocalModelInfo, contextTokens: Int,
                                     kvBits: Int) -> Int64 {
         // Quantised K/V is stored at `kvBits` with a per-group scale; 16 -> 1.0 (full precision).

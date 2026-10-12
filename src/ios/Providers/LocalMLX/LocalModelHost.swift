@@ -39,6 +39,8 @@ struct LocalGenStats: Sendable, Codable {
     var contextTokens: Int = 0
     var kvBytesPerToken: Int = 0
     var kvBits: Int = 16
+    /// The output budget this turn actually ran with, after the engine's memory bound was applied.
+    var tokenBudget: Int = 0
     /// Decode rate with the checkpoint's own sampling, measured alongside the greedy pass.
     var sampledDecodeTokensPerSecond: Double = 0
     var sampledTokensPerSecondIsSamePath = false
@@ -75,10 +77,66 @@ actor LocalModelHost {
     private(set) var modelId: String?
     private var container: ModelContainer?
     private var containerIsVLM = false
-    private var session: MLXLMCommon.ChatSession?
-    private var sessionKey: String?
-    /// The transcript the live session has already consumed, *including* the reply it generated.
-    private var consumed: [(role: String, text: String, images: Int)] = []
+    /// One live conversation: MLX's session (which owns a KV cache) plus what it has already consumed.
+    private final class LiveSession {
+        let key: String
+        let session: MLXLMCommon.ChatSession
+        /// The transcript this session has consumed, *including* the replies it generated.
+        var consumed: [(role: String, text: String, images: Int)] = []
+        var lastUsed = Date()
+        init(key: String, session: MLXLMCommon.ChatSession) {
+            self.key = key
+            self.session = session
+        }
+    }
+
+    // [T-nabla-local-mlx-session-pool] More than one conversation can be in flight on the same model.
+    // Seen in the device turn log: after each exchange the app asks the engine for a short *title*
+    // generation ("You generate concise titles for conversations…") with a different system prompt and a
+    // one-message transcript. With a single session slot that request evicted the chat's session — the
+    // next chat turn then reported "rebuilt: the transcript is shorter than what this session has already
+    // generated" and re-prefilled all ~13k tokens (26 s on the 4B) instead of the new message alone.
+    //
+    // The app already assumes a stable tools + system prefix: its Anthropic client places
+    // `cache_control: ephemeral` on the last tool definition precisely so that "tools + system" are reused
+    // across turns (`OAuthHTTPClient.swift`). The same contract holds here, so the conversation identity
+    // (model, thinking mode, system prompt) is the right key. Two slots is deliberate — each holds a KV
+    // cache for the whole context, so an unbounded pool would trade speed for memory it does not have.
+    private var liveSessions: [LiveSession] = []
+    private static let maxLiveSessions = 2
+
+    private func liveSession(for key: String) -> LiveSession? {
+        guard let i = liveSessions.firstIndex(where: { $0.key == key }) else { return nil }
+        let e = liveSessions.remove(at: i)
+        e.lastUsed = Date()
+        liveSessions.append(e)
+        return e
+    }
+
+    private func store(_ entry: LiveSession) {
+        liveSessions.removeAll { $0.key == entry.key }
+        entry.lastUsed = Date()
+        liveSessions.append(entry)
+        while liveSessions.count > Self.maxLiveSessions {
+            // Least recently used first; dropping the object releases its cache.
+            liveSessions.removeFirst()
+        }
+    }
+
+    private func clearSessions() {
+        liveSessions.removeAll()
+    }
+
+    /// A short stable digest of the system prompt: the conversation identity for the pool and the log.
+    static func promptDigest(_ s: String?) -> String {
+        guard let s, !s.isEmpty else { return "none" }
+        var h: UInt64 = 0xcbf29ce484222325
+        for b in s.utf8 {
+            h ^= UInt64(b)
+            h = h &* 0x100000001b3
+        }
+        return String(format: "%012llx", h & 0xffffffffffff)
+    }
     private var activeTask: Task<Void, Error>?
 
     // MARK: Residency
@@ -91,9 +149,8 @@ actor LocalModelHost {
     func unload() async {
         activeTask?.cancel()
         activeTask = nil
-        session = nil
-        sessionKey = nil
-        consumed = []
+        // Every live session owns a KV cache; unloading the weights must release them too.
+        clearSessions()
         container = nil
         containerIsVLM = false
         modelId = nil
@@ -219,8 +276,10 @@ actor LocalModelHost {
         // — which threw away that machinery for a prompt that is rebuilt every turn. With this app's
         // ~11.5k-token agent prompt that is the difference between re-prefilling 11.5k tokens (18 s on
         // device) and prefilling whatever the turn actually added.
-        let key = "\(id)|\(thinking)"
-        if sessionKey != key { session = nil; consumed = [] }
+        // The conversation identity: model + thinking mode + the system prompt text (the app keeps the
+        // latter stable within a conversation — that is what its own Anthropic cache breakpoints assume).
+        let key = "\(id)|\(thinking)|\(Self.promptDigest(system))"
+        let existing = liveSession(for: key)
 
         // The new input is everything after the last assistant turn: one user message normally, or a
         // batch of tool results after the model called tools. `streamDetails(to:)` takes a batch.
@@ -235,11 +294,11 @@ actor LocalModelHost {
         // one or more new messages", not "identical prefix plus exactly one".
         var continues = false
         var reuseNote = "new session"
-        if session != nil, sessionKey == key {
-            switch Self.compare(consumed: consumed, prior: prior) {
+        if let existing {
+            switch Self.compare(consumed: existing.consumed, prior: prior) {
             case .matches:
                 continues = true
-                reuseNote = "continuing the session (\(consumed.count) messages cached)"
+                reuseNote = "continuing the session (\(existing.consumed.count) messages cached)"
             case .lastAssistantRewritten:
                 // The transcript's copy of the previous answer differs from the text this session
                 // generated (a thinking model often keeps the reasoning the app stores without it, and
@@ -252,36 +311,50 @@ actor LocalModelHost {
             case .differs(let at, let what):
                 reuseNote = "rebuilt: history message \(at) differs (\(what))"
             }
-        } else if session != nil {
-            reuseNote = "rebuilt: model or thinking mode changed"
         }
 
-        let s: MLXLMCommon.ChatSession
-        if continues, let live = session {
+        // Whichever session this turn runs in — a continued one or the replacement for this key.
+        let target: LiveSession
+        if continues, let existing {
             // Hand the live session the current prompt and tool set: it re-renders its leading messages
             // from these every call, so this is how a changed system prompt is applied without losing the
             // cache. Leaving them stale would silently answer from the previous turn's instructions.
-            live.instructions = system
-            live.tools = tools
-            s = live
+            existing.session.instructions = system
+            existing.session.tools = tools
+            target = existing
         } else {
             // `tools` without `toolDispatch`: ChatSession then emits `Generation.toolCall` and returns,
             // leaving execution to the caller — which is exactly the app's agent loop. MLX renders the
             // schemas through the model's OWN chat template and parses calls with the format inferred
             // from that template (`ToolCallFormat.inferred(fromChatTemplate:)`), so this stays generic
             // across model families instead of growing a branch per family.
-            s = MLXLMCommon.ChatSession(
+            let fresh = MLXLMCommon.ChatSession(
                 c, instructions: system,
                 history: prior.map(Self.message),
                 generateParameters: params,
                 additionalContext: info.thinkingCapable
                     ? (["enable_thinking": thinking] as [String: any Sendable]) : nil,
                 tools: tools)
-            session = s
+            target = LiveSession(key: key, session: fresh)
+            store(target)
         }
-        sessionKey = key
+        let s = target.session
         s.generateParameters = params
 
+        // [T-nabla-local-mlx-budget] The limit that actually binds on a phone is not a constant: it is how
+        // many more tokens of K/V this process can hold next to the weights it has already loaded. Derive
+        // it, log it, and show it — so a reply that stops early is explainable rather than mysterious, and
+        // a long one is allowed whenever the memory genuinely exists.
+        let kvPerToken = Double(info.kvBytesPerToken) * Double(kv.displayBits) / 16.0
+        // The prompt's own K/V comes first; only what is left can be spent on generated tokens. ~4 chars
+        // per token is enough for a bound, and being approximately wrong here only makes the budget
+        // slightly conservative.
+        let promptEstimate = Double(history.reduce(0) { $0 + $1.text.count }) / 4.0
+        let affordable = LocalModelStore.affordableContextTokens(
+            for: info, kvBits: kv.displayBits, freeBytes: Int64(os_proc_available_memory()))
+        let memoryBound = affordable - Int(promptEstimate)
+        let budget = memoryBound > 0 ? min(maxTokens, max(1024, memoryBound)) : maxTokens
+        LocalTurnLog.note("turn budget=\(budget) requested=\(maxTokens) memoryBound=\(memoryBound) kvPerToken=\(Int(kvPerToken)) key=\(key)")
         let started = Date()
         var firstTokenAt: Date?
         var gen = 0
@@ -292,6 +365,7 @@ actor LocalModelHost {
         stats.kvBytesPerToken = info.kvBytesPerToken
         stats.kvBits = kv.displayBits
         stats.reuseNote = reuseNote
+        stats.tokenBudget = maxTokens
 
         // [T-nabla-local-mlx-thinking-tags] The tags are built from parts on purpose. Written literally
         // in source they survived a file write mangled into the bare words (` thinking` → `thinking`),
@@ -386,7 +460,7 @@ actor LocalModelHost {
         activeTask = nil
 
         // The session now holds the prompt and this reply; the next turn must extend exactly this.
-        consumed = history.map { ($0.role, $0.text, $0.images.count) }
+        target.consumed = history.map { ($0.role, $0.text, $0.images.count) }
             + [("assistant", Self.visibleText(out), 0)]
         _ = toolCallsThisTurn
         stats.timeToFirstToken = (firstTokenAt ?? Date()).timeIntervalSince(started)
@@ -399,7 +473,11 @@ actor LocalModelHost {
             promptTokens: stats.promptTokens, reusedTokens: stats.reusedTokens,
             prefillMs: Int(stats.prefillSeconds * 1000), decodeMs: Int(stats.decodeSeconds * 1000),
             generated: stats.generatedTokens)
-        onEvent(.done(maxTokensHit: false))
+        // Tell the truth about why generation stopped: the app can only offer "continue" or explain a
+        // truncated answer if the engine reports that it hit the budget rather than finishing.
+        let hitLimit = stats.generatedTokens >= maxTokens
+        if hitLimit { LocalTurnLog.note("turn hit the output budget (\(maxTokens) tokens)") }
+        onEvent(.done(maxTokensHit: hitLimit))
     }
 
     /// Measure decode speed on a short prompt, with no transcript to prefill.
@@ -443,7 +521,7 @@ actor LocalModelHost {
         }
         let history = [LocalTurn(role: "user", text: text)]
         // A fresh session every time: reusing one would reuse a cache and flatter the number.
-        session = nil; sessionKey = nil; consumed = []
+        clearSessions()
         let previous = LocalSamplingPreference.current
         UserDefaults.standard.set(greedy ? LocalSamplingPreference.greedy.rawValue
                                          : LocalSamplingPreference.model.rawValue,
