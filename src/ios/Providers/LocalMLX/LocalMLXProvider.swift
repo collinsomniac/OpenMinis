@@ -70,32 +70,64 @@ struct LocalMLXAgentProvider: AgentProvider {
     func streamAgentMessageClamped(messages: [AgentMessage], systemPrompt: String?,
                                    tools: [AgentToolDefinition], maxTokens: Int,
                                    thinkingLevel: ThinkingLevel) async throws -> AsyncThrowingStream<AgentStreamEvent, Error> {
-        // Parts → turns, keeping images as images for a model that can actually see them.
-        let history: [LocalTurn] = messages.map { m in
+        // Parts → structured turns, the way the other providers send them: images as images, tool calls
+        // as assistant tool calls, tool results as tool-role messages. [T-nabla-local-mlx-tools]
+        var history: [LocalTurn] = []
+        for m in messages {
             var images: [Data] = []
-            var pieces: [String] = []
+            var texts: [String] = []
+            var calls: [LocalToolCall] = []
+            var results: [LocalTurn] = []
             for part in m.parts {
                 switch part {
                 case .text(let t):
-                    pieces.append(t)
+                    texts.append(t)
                 case .imageData(let data, _, _):
                     images.append(data)
-                case .toolUse(_, let name, let input, _):
-                    // Local models are not yet offered tool schemas (see the note in this file), so a
-                    // tool call can only be one the model wrote as text. Render it so the transcript
-                    // stays faithful.
-                    let args = (try? JSONSerialization.data(withJSONObject: input))
+                case .toolUse(let callId, let name, let input, _):
+                    let json = (try? JSONSerialization.data(withJSONObject: input))
                         .flatMap { String(data: $0, encoding: .utf8) } ?? "{}"
-                    pieces.append("[called \(name) \(args)]")
-                case .toolResult(_, let name, let content, let isError, _, _, _, _, _):
-                    pieces.append("[\(name) \(isError ? "error" : "result")]\n\(content)")
+                    calls.append(LocalToolCall(id: callId, name: name, argumentsJSON: json))
+                case .toolResult(let callId, let name, let content, let isError, let imageData, _, _, _, _):
+                    // An image a tool returned (a screenshot, read_image) rides along with its result.
+                    var resultImages: [Data] = []
+                    if let imageData { resultImages.append(imageData) }
+                    results.append(LocalTurn(role: "tool", text: isError ? "Error: \(content)" : content,
+                                             images: resultImages, toolCallId: callId, toolName: name))
                 }
             }
-            // A turn that is only an image needs a non-empty prompt or the template emits an empty
-            // user message and the model has nothing to answer.
-            let text = pieces.joined(separator: "\n").isEmpty && !images.isEmpty
-                ? "Describe this image." : pieces.joined(separator: "\n")
-            return LocalTurn(role: m.role == .assistant ? "assistant" : "user", text: text, images: images)
+            let text = texts.joined(separator: "\n")
+            if m.role == .assistant {
+                history.append(LocalTurn(role: "assistant", text: text, toolCalls: calls))
+            } else {
+                // Tool results come back inside a user message; they become their own tool-role turns.
+                history.append(contentsOf: results)
+                if !text.isEmpty || !images.isEmpty {
+                    history.append(LocalTurn(role: "user",
+                                             text: text.isEmpty ? "Describe this image." : text,
+                                             images: images))
+                }
+            }
+        }
+
+        // The schemas, in the OpenAI function shape MLX's ToolSpec uses (the same shape the OpenAI
+        // provider sends). The model's own template decides how they are rendered.
+        let toolSpecs: [[String: any Sendable]]? = tools.isEmpty ? nil : tools.map { tool in
+            var properties: [String: any Sendable] = [:]
+            for (name, param) in tool.parameters {
+                var prop: [String: any Sendable] = ["type": param.type.rawValue, "description": param.description]
+                if let e = param.enumValues { prop["enum"] = e }
+                properties[name] = prop
+            }
+            return [
+                "type": "function",
+                "function": [
+                    "name": tool.name,
+                    "description": tool.description,
+                    "parameters": ["type": "object", "properties": properties,
+                                   "required": tool.required] as [String: any Sendable],
+                ] as [String: any Sendable],
+            ]
         }
 
         let id = model.id
@@ -110,17 +142,29 @@ struct LocalMLXAgentProvider: AgentProvider {
                 do {
                     cont.yield(.contentBlockStart(.text))
                     cont.yield(.responseModel(id))
+                    let calledTools = ToolCallTracker()
                     try await LocalModelHost.shared.stream(
                         modelId: id, system: systemPrompt, history: history,
-                        maxTokens: budget, temperature: temperature, thinking: thinking
+                        maxTokens: budget, temperature: temperature, thinking: thinking,
+                        tools: toolSpecs
                     ) { ev in
                         switch ev {
                         case .text(let t): cont.yield(.textDelta(t))
                         case .thinking(let t): cont.yield(.thinkingDelta(t))
+                        case .toolCall(let callId, let name, let json):
+                            // Same events a cloud provider emits, so the app's loop executes the tool,
+                            // shows it in the tool sheet, and sends the result back — no parallel path.
+                            let args = (try? JSONSerialization.jsonObject(with: Data(json.utf8))) as? [String: Any] ?? [:]
+                            cont.yield(.contentBlockStart(.toolUse(id: callId, name: name)))
+                            cont.yield(.toolInputDelta(name: name, accumulated: json))
+                            cont.yield(.toolCallComplete(id: callId, name: name, args: args, metadata: nil))
+                            calledTools.mark()
                         case .usage(let i, let o, _):
                             cont.yield(.usage(LLMUsage(inputTokens: i, outputTokens: o,
                                                        cacheCreationInputTokens: nil, cacheReadInputTokens: nil)))
-                        case .done(let hit): cont.yield(.done(stopReason: hit ? .maxTokens : .endTurn))
+                        case .done(let hit):
+                            cont.yield(.done(stopReason: hit ? .maxTokens
+                                                 : (calledTools.any ? .toolUse : .endTurn)))
                         case .cache: break
                         }
                     }
@@ -154,4 +198,12 @@ extension LLMModel {
                 supportsReasoning: m.thinkingCapable)
         }
     }
+}
+
+/// Whether a turn ended by calling tools — which decides the stop reason the agent loop acts on.
+private final class ToolCallTracker: @unchecked Sendable {
+    private let lock = NSLock()
+    private var called = false
+    func mark() { lock.lock(); called = true; lock.unlock() }
+    var any: Bool { lock.lock(); defer { lock.unlock() }; return called }
 }

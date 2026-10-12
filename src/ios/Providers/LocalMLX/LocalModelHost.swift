@@ -169,6 +169,7 @@ actor LocalModelHost {
     /// difference between a fast turn and a slow one.
     func stream(modelId id: String, system: String?, history: [LocalTurn],
                 maxTokens: Int, temperature: Float?, thinking: Bool,
+                tools: [[String: any Sendable]]? = nil,
                 onEvent: @escaping @Sendable (LocalEvent) -> Void) async throws {
         let c = try await load(id)
         let info = LocalModelStore.profile(LocalModelStore.dir(for: id))
@@ -191,12 +192,20 @@ actor LocalModelHost {
         params.minP = sampling.minP
         params.repetitionPenalty = sampling.repetitionPenalty
 
-        let key = "\(id)|\(system ?? "")|\(thinking)"
+        // [T-nabla-local-mlx-tools] The tool set is part of the prompt (the template renders it), so a
+        // session prefilled without tools must not be reused with them, and vice versa.
+        let toolKey = (tools ?? []).compactMap { ($0["function"] as? [String: any Sendable])?["name"] as? String }
+            .joined(separator: ",")
+        let key = "\(id)|\(system ?? "")|\(thinking)|\(toolKey)"
         if sessionKey != key { session = nil; consumed = [] }
 
-        let prior = Array(history.dropLast())
-        let last = history.last ?? LocalTurn(role: "user", text: "")
-        let lastMessage = Self.message(last)
+        // The new input is everything after the last assistant turn: one user message normally, or a
+        // batch of tool results after the model called tools. `streamDetails(to:)` takes a batch.
+        let splitIndex = (history.lastIndex(where: { $0.role == "assistant" }).map { $0 + 1 }) ?? max(0, history.count - 1)
+        let prior = Array(history[..<splitIndex])
+        let newTurns = history.count > splitIndex ? Array(history[splitIndex...])
+                                                  : [LocalTurn(role: "user", text: "")]
+        let newMessages = newTurns.map(Self.message)
 
         // Reuse the live session when this request continues it by at least its consumed prefix: the
         // agent loop re-sends the whole transcript every turn, so the common case is "same prefix plus
@@ -210,12 +219,18 @@ actor LocalModelHost {
         if continues, let live = session {
             s = live
         } else {
+            // `tools` without `toolDispatch`: ChatSession then emits `Generation.toolCall` and returns,
+            // leaving execution to the caller — which is exactly the app's agent loop. MLX renders the
+            // schemas through the model's OWN chat template and parses calls with the format inferred
+            // from that template (`ToolCallFormat.inferred(fromChatTemplate:)`), so this stays generic
+            // across model families instead of growing a branch per family.
             s = MLXLMCommon.ChatSession(
                 c, instructions: system,
                 history: prior.map(Self.message),
                 generateParameters: params,
                 additionalContext: info.thinkingCapable
-                    ? (["enable_thinking": thinking] as [String: any Sendable]) : nil)
+                    ? (["enable_thinking": thinking] as [String: any Sendable]) : nil,
+                tools: tools)
             session = s
         }
         sessionKey = key
@@ -226,6 +241,7 @@ actor LocalModelHost {
         var gen = 0
         var out = ""
         var stats = LocalGenStats(model: id)
+        var toolCallsThisTurn: [MLXLMCommon.ToolCall] = []
         stats.model = id
         stats.kvBytesPerToken = info.kvBytesPerToken
         stats.kvBits = kv.bits
@@ -255,7 +271,7 @@ actor LocalModelHost {
         }
 
         let task = Task {
-            for try await g in s.streamDetails(to: [lastMessage]) {
+            for try await g in s.streamDetails(to: newMessages) {
                 try Task.checkCancellation()
                 if let chunk = g.chunk {
                     if firstTokenAt == nil { firstTokenAt = Date() }
@@ -290,6 +306,15 @@ actor LocalModelHost {
                     }
                     flush()
                 }
+                if case .toolCall(let call) = g {
+                    flush(force: true)
+                    let args = call.function.arguments.mapValues { $0.anyValue }
+                    let json = (try? JSONSerialization.data(withJSONObject: args))
+                        .flatMap { String(data: $0, encoding: .utf8) } ?? "{}"
+                    onEvent(.toolCall(id: call.id ?? "call_\(UUID().uuidString.prefix(8))",
+                                      name: call.function.name, argumentsJSON: json))
+                    toolCallsThisTurn.append(call)
+                }
                 if let info = g.info {
                     stats.promptTokens = info.totalPromptTokenCount
                     stats.reusedTokens = max(0, info.totalPromptTokenCount - info.promptTokenCount)
@@ -315,7 +340,8 @@ actor LocalModelHost {
 
         // The session now holds the prompt and this reply; the next turn must extend exactly this.
         consumed = history.map { ($0.role, $0.text, $0.images.count) }
-            + [("assistant", out, 0)]
+            + [("assistant", Self.visibleText(out), 0)]
+        _ = toolCallsThisTurn
         stats.timeToFirstToken = (firstTokenAt ?? Date()).timeIntervalSince(started)
         stats.contextTokens = stats.promptTokens + stats.generatedTokens
         await publishStats(stats)
@@ -347,7 +373,8 @@ actor LocalModelHost {
         for (i, was) in consumed.enumerated() {
             let now = prior[i]
             if was.role != now.role { return false }
-            if was.text != now.text { return false }
+            if was.text.trimmingCharacters(in: .whitespacesAndNewlines)
+                != now.text.trimmingCharacters(in: .whitespacesAndNewlines) { return false }
             if was.images != now.images.count { return false }
         }
         return true
@@ -357,8 +384,47 @@ actor LocalModelHost {
         let images: [UserInput.Image] = t.images.compactMap { data in
             CIImage(data: data).map { UserInput.Image.ciImage($0) }
         }
-        if t.role == "assistant" { return .assistant(t.text) }
-        return .user(t.text, images: images)
+        switch t.role {
+        case "assistant":
+            let calls: [MLXLMCommon.ToolCall] = t.toolCalls.map { c in
+                let obj = (try? JSONSerialization.jsonObject(with: Data(c.argumentsJSON.utf8))) as? [String: Any] ?? [:]
+                let args = obj.mapValues { Self.sendable($0) }
+                return MLXLMCommon.ToolCall(function: .init(name: c.name, arguments: args), id: c.id)
+            }
+            return .assistant(t.text, toolCalls: calls.isEmpty ? nil : calls)
+        case "tool":
+            return .tool(t.text, id: t.toolCallId, name: t.toolName)
+        default:
+            return .user(t.text, images: images)
+        }
+    }
+
+    /// JSONSerialization hands back Foundation types; ToolCall wants Sendable values it can encode.
+    private static func sendable(_ v: Any) -> any Sendable {
+        switch v {
+        case let s as String: return s
+        case let n as NSNumber:
+            if CFGetTypeID(n) == CFBooleanGetTypeID() { return n.boolValue }
+            return n.doubleValue.rounded() == n.doubleValue && abs(n.doubleValue) < 1e15 ? n.intValue : n.doubleValue
+        case let a as [Any]: return a.map { sendable($0) }
+        case let d as [String: Any]: return d.mapValues { sendable($0) }
+        default: return String(describing: v)
+        }
+    }
+
+    /// The reply as the transcript records it: reasoning stripped (the app stores the answer, not the
+    /// trace), so the reuse comparison on the next turn matches what the app sends back.
+    private static func visibleText(_ raw: String) -> String {
+        let open = "<" + "think" + ">", close = "<" + "/" + "think" + ">"
+        var out = raw
+        if let c = out.range(of: close) {
+            if let o = out.range(of: open), o.lowerBound < c.lowerBound {
+                out.removeSubrange(o.lowerBound..<c.upperBound)
+            } else {
+                out.removeSubrange(out.startIndex..<c.upperBound)
+            }
+        }
+        return out.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     /// Residency is published on EVERY path that changes it, including the early return in `load`.
@@ -441,9 +507,26 @@ struct LocalTurn: Sendable {
     let role: String
     let text: String
     var images: [Data] = []
+    /// Assistant turns: the structured calls the model made (rendered back into the template as real
+    /// tool calls, not as prose — a model that sees its own calls as text learns to write text).
+    var toolCalls: [LocalToolCall] = []
+    /// Tool-role turns: which call this result answers.
+    var toolCallId: String? = nil
+    var toolName: String? = nil
+}
+
+/// A tool call in a form both the app and MLX can carry.
+struct LocalToolCall: Sendable {
+    let id: String
+    let name: String
+    /// JSON object text; decoded on the MLX side into `[String: JSONValue]`.
+    let argumentsJSON: String
 }
 
 enum LocalEvent: Sendable {
+    /// The model asked for a tool. The app's own agent loop executes it and sends the result back as a
+    /// tool-role turn — the same loop every other provider uses.
+    case toolCall(id: String, name: String, argumentsJSON: String)
     case cache(reused: Bool, cachedMessages: Int)
     case text(String)
     case thinking(String)
