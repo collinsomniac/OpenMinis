@@ -39,6 +39,14 @@ jobs:
         with:
           submodules: recursive
 
+      - name: Xcode + Metal toolchain
+        run: |
+          xcodebuild -version
+          # mlx-swift's Cmlx target compiles .metal files, so the simulator build needs this too —
+          # its absence fails the build with "cannot execute tool 'metal'".
+          xcodebuild -downloadComponent MetalToolchain || true
+          xcrun -sdk iphonesimulator metal --version || true
+
       - name: Tooling
         run: |
           brew install ninja llvm lld libarchive pkg-config go || true
@@ -129,6 +137,7 @@ jobs:
         run: |
           python3 - <<'PY'
           import glob, os, pathlib
+          pathlib.Path('preview').mkdir(exist_ok=True)
           imgs = sorted(glob.glob('preview/*.png'))
           sha = os.environ.get('GITHUB_SHA', '')[:7]
           cards = "\n".join(
