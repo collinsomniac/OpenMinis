@@ -213,7 +213,7 @@ final class LocalInferenceModel: ObservableObject {
     /// K/V bytes per context token for the *currently selected* precision, taken from whichever model is
     /// resident (or the first in the library). Independent of whether a turn has run yet.
     var kvBytesPerTokenForSelection: Double? {
-        let id = engine.residentModelId
+        let id = LocalEngineState.shared.residentModelId
         guard let info = (id.flatMap { want in models.first { $0.id == want } }) ?? models.first,
               info.kvBytesPerToken > 0 else { return nil }
         let bits = Double(kvPrecision.displayBits)
