@@ -25,7 +25,7 @@ import Tokenizers
 // MARK: - Engine
 
 /// A turn's measurements, so "it feels slow" can be answered with numbers.
-struct LocalGenStats: Sendable {
+struct LocalGenStats: Sendable, Codable {
     var model: String = ""
     var promptTokens: Int = 0
     /// Prompt tokens this turn did NOT prefill, because the session already represented them.
@@ -129,7 +129,7 @@ actor LocalModelHost {
         // often far larger than a phone can hold K/V for, and it is the KV term that decides.
         let kvPref = LocalKVCachePreference.current
         let budgetContext = min(info.contextLength ?? 8192, LocalKVCachePreference.assumedContextTokens)
-        let need = LocalModelStore.runCost(for: info, contextTokens: budgetContext, kvBits: kvPref.bits)
+        let need = LocalModelStore.runCost(for: info, contextTokens: budgetContext, kvBits: kvPref.displayBits)
         let have = Int64(os_proc_available_memory())
         guard need <= have else {
             await publishResidency(model: nil, loading: nil)
@@ -186,9 +186,13 @@ actor LocalModelHost {
         // keeps K/V in full precision for the first N tokens. Halving KV bytes halves the per-token read
         // that dominates at long context, while a short conversation pays nothing.
         let kv = LocalKVCachePreference.current
-        params.kvBits = kv.bits
-        params.kvGroupSize = 64
-        params.quantizedKVStart = kv.startTokens
+        // Only ask for a quantised cache when one was actually chosen: passing a width for "full" makes
+        // MLX build a plan it cannot apply, and the failure is swallowed.
+        if let bits = kv.bits {
+            params.kvBits = bits
+            params.kvGroupSize = 64
+            params.quantizedKVStart = kv.startTokens
+        }
         let sampling = info.sampling
         params.temperature = temperature ?? sampling.temperature
         // 1.0 unless the model asked for a small top-p AND has no cheaper filter to use instead.
@@ -280,7 +284,7 @@ actor LocalModelHost {
         var toolCallsThisTurn: [MLXLMCommon.ToolCall] = []
         stats.model = id
         stats.kvBytesPerToken = info.kvBytesPerToken
-        stats.kvBits = kv.bits
+        stats.kvBits = kv.displayBits
         stats.reuseNote = reuseNote
 
         // [T-nabla-local-mlx-thinking-tags] The tags are built from parts on purpose. Written literally
@@ -382,6 +386,13 @@ actor LocalModelHost {
         stats.timeToFirstToken = (firstTokenAt ?? Date()).timeIntervalSince(started)
         stats.contextTokens = stats.promptTokens + stats.generatedTokens
         await publishStats(stats)
+        LocalTurnLog.turn(
+            model: id, thinking: thinking,
+            kv: "\(kv.displayBits)|\(kv.startTokens)",
+            system: system, history: history, note: reuseNote,
+            promptTokens: stats.promptTokens, reusedTokens: stats.reusedTokens,
+            prefillMs: Int(stats.prefillSeconds * 1000), decodeMs: Int(stats.decodeSeconds * 1000),
+            generated: stats.generatedTokens)
         onEvent(.done(maxTokensHit: false))
     }
 
@@ -398,6 +409,7 @@ actor LocalModelHost {
     /// temperature, is what makes the two comparable — and it is the only way to tell whether quantising
     /// K/V helps or hurts, since MLX's quantised attention path dequantises before the matmul.
     func benchmark(_ id: String, contextTokens: Int = 0, maxTokens: Int = 128) async throws -> LocalGenStats {
+        LocalTurnLog.note("benchmark start \(id) ctx=\(contextTokens) kv=\(LocalKVCachePreference.current.displayBits)")
         var stats = LocalGenStats(model: id)
         var text = "Count from 1 to 40 in words, comma separated."
         if contextTokens > 0 {
@@ -550,14 +562,21 @@ enum LocalKVCachePreference: Hashable {
     static let key = "nabla.localInference.kvPrecision"
     static let startKey = "nabla.localInference.kvStartTokens"
 
-    /// 16 = full precision (MLX treats nil/16 as uncompressed).
-    var bits: Int {
+    /// Bits for MLX, where **nil means no quantization at all** (`GenerateParameters.kvBits` is `Int?`,
+    /// documented "nil = no quantization"). This used to return 16 for full precision, which is not one of
+    /// the widths MLX plans for — the affine plan failed to build, `maybeAffineQuantizeKVCache` silently
+    /// left the cache uncompressed via `try?`, and "Full precision" did nothing except leave the UI looking
+    /// as if the setting had not been applied.
+    var bits: Int? {
         switch self {
-        case .full: return 16
+        case .full: return nil
         case .eightBit: return 8
         case .fourBit: return 4
         }
     }
+
+    /// The width to reason about in the UI and in memory estimates, where "full" is 16 bits wide.
+    var displayBits: Int { bits ?? 16 }
 
     var startTokens: Int {
         switch self {
@@ -571,6 +590,110 @@ enum LocalKVCachePreference: Hashable {
         case .full: return "Full precision"
         case .eightBit(let n): return n > 0 ? "8-bit after \(n) tokens" : "8-bit"
         case .fourBit(let n): return n > 0 ? "4-bit after \(n) tokens" : "4-bit"
+        }
+    }
+}
+
+/// A deliberately plain, append-only record of what each turn actually sent.
+///
+/// [T-nabla-local-mlx-turn-log] The questions that matter here cannot be answered from a screenshot: is the
+/// system prompt identical between turns, and if not, where does it first differ? Does the history the app
+/// sends have the shape we assume? `reuseNote` names the *decision*; this names the *input* it was made
+/// from, and it is readable over the tunnel with `tools/container_ls.py` without the app being touched.
+enum LocalTurnLog {
+    private static let lock = NSLock()
+    private static var lastSystem: String?
+    private static var lastHistory: [(role: String, text: String)] = []
+    private static let directory: URL = {
+        let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        return docs.appendingPathComponent("looplab", isDirectory: true)
+    }()
+    private static let file = directory.appendingPathComponent("turns.jsonl")
+
+    /// Characters shared with the previous string, which is the only number that matters for prefix reuse.
+    private static func commonPrefix(_ a: String, _ b: String) -> Int {
+        var n = 0
+        for (x, y) in zip(a, b) {
+            if x != y { break }
+            n += 1
+        }
+        return n
+    }
+
+    private static func head(_ s: String, _ n: Int = 120) -> String {
+        s.count <= n ? s : String(s.prefix(n)) + "…"
+    }
+
+    static func note(_ what: String) {
+        append(["t": ISO8601DateFormatter().string(from: Date()), "event": what])
+    }
+
+    static func turn(model: String, thinking: Bool, kv: String, system: String?,
+                     history: [LocalTurn], note: String, promptTokens: Int, reusedTokens: Int,
+                     prefillMs: Int, decodeMs: Int, generated: Int) {
+        let sys = system ?? ""
+        var entry: [String: Any] = [
+            "t": ISO8601DateFormatter().string(from: Date()),
+            "model": model, "thinking": thinking, "kv": kv,
+            "note": note,
+            "prompt": promptTokens, "reused": reusedTokens,
+            "prefillMs": prefillMs, "decodeMs": decodeMs, "generated": generated,
+        ]
+        if !sys.isEmpty {
+            var s: [String: Any] = [
+                "chars": sys.count,
+                "head": head(sys),
+                "tail": sys.count > 160 ? String(sys.suffix(160)) : "",
+            ]
+            if let last = lastSystem {
+                s["commonPrefixWithPrev"] = commonPrefix(sys, last)
+                s["changed"] = last != sys
+            }
+            entry["system"] = s
+        }
+        entry["history"] = history.enumerated().map { i, h -> [String: Any] in
+            var d: [String: Any] = ["i": i, "role": h.role, "chars": h.text.count, "head": head(h.text, 80)]
+            if h.images.count > 0 { d["images"] = h.images.count }
+            if !h.toolCalls.isEmpty { d["toolCalls"] = h.toolCalls.count }
+            if i < lastHistory.count {
+                let was = lastHistory[i]
+                d["prevRole"] = was.role
+                d["prevChars"] = was.text.count
+                d["commonPrefixWithPrev"] = commonPrefix(h.text, was.text)
+                d["sameAsPrev"] = (was.role == h.role && was.text == h.text)
+            }
+            return d
+        }
+        entry["historyCount"] = history.count
+        entry["prevHistoryCount"] = lastHistory.count
+        lastSystem = sys
+        lastHistory = history.map { ($0.role, $0.text) }
+        append(entry)
+    }
+
+    private static func append(_ entry: [String: Any]) {
+        lock.lock()
+        defer { lock.unlock() }
+        do {
+            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+            // Bounded: the log is a diagnostic, not a history. One rotation is enough to see a session.
+            let size = (try? FileManager.default.attributesOfItem(atPath: file.path)[.size] as? Int) ?? 0
+            if (size ?? 0) > 1_500_000 {
+                try? FileManager.default.removeItem(at: directory.appendingPathComponent("turns.1.jsonl"))
+                try? FileManager.default.moveItem(at: file,
+                                                  to: directory.appendingPathComponent("turns.1.jsonl"))
+            }
+            let data = try JSONSerialization.data(withJSONObject: entry)
+            if FileManager.default.fileExists(atPath: file.path),
+               let handle = try? FileHandle(forWritingTo: file) {
+                defer { try? handle.close() }
+                try handle.seekToEnd()
+                try handle.write(contentsOf: data + Data("\n".utf8))
+            } else {
+                try (data + Data("\n".utf8)).write(to: file)
+            }
+        } catch {
+            // A diagnostic must never break a turn.
         }
     }
 }

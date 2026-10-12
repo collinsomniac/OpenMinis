@@ -48,9 +48,31 @@ final class LocalInferenceModel: ObservableObject {
     @Published var loading: String?
     @Published var stats: LocalGenStats?
     @Published var benching = false
-    @Published var benchResult: LocalGenStats?
+    @Published var benchResult: LocalGenStats? {
+        didSet { Self.persistBench(benchResult, "nabla.localInference.bench") }
+    }
     /// The same measurement behind a large synthetic prompt — the case the agent loop is actually in.
-    @Published var benchContextResult: LocalGenStats?
+    @Published var benchContextResult: LocalGenStats? {
+        didSet { Self.persistBench(benchContextResult, "nabla.localInference.benchContext") }
+    }
+
+    /// Benchmark results are a measurement of the device, not of this launch: keep them so the Performance
+    /// section still shows the ceiling after the app is restarted.
+    private static func persistBench(_ s: LocalGenStats?, _ key: String) {
+        guard let s, let d = try? JSONEncoder().encode(s) else { return }
+        UserDefaults.standard.set(d, forKey: key)
+    }
+
+    private static func loadBench(_ key: String) -> LocalGenStats? {
+        guard let d = UserDefaults.standard.data(forKey: key) else { return nil }
+        return try? JSONDecoder().decode(LocalGenStats.self, from: d)
+    }
+
+    init() {
+        benchResult = Self.loadBench("nabla.localInference.bench")
+        benchContextResult = Self.loadBench("nabla.localInference.benchContext")
+        refresh()
+    }
     /// The last load request and its outcome, verbatim. Turns "it just doesn't load" into a readable line.
     @Published var lastAttempt: LocalAttempt?
 
@@ -133,10 +155,10 @@ final class LocalInferenceModel: ObservableObject {
     nonisolated static func fit(_ info: LocalModelInfo, available: Int) -> (fits: Bool, note: String) {
         let kv = LocalKVCachePreference.current
         let ctx = min(info.contextLength ?? 8192, LocalKVCachePreference.assumedContextTokens)
-        let need = LocalModelStore.runCost(for: info, contextTokens: ctx, kvBits: kv.bits)
+        let need = LocalModelStore.runCost(for: info, contextTokens: ctx, kvBits: kv.displayBits)
         let have = Int64(available)
         let f = ByteCountFormatter()
-        let kvPerToken = Double(info.kvBytesPerToken) * Double(kv.bits) / 16.0
+        let kvPerToken = Double(info.kvBytesPerToken) * Double(kv.displayBits) / 16.0
         let kvString = ByteCountFormatter.string(fromByteCount: Int64(kvPerToken), countStyle: .memory)
         if need <= have {
             return (true, "weights \(f.string(fromByteCount: info.bytes)), K/V \(kvString)/token")
@@ -186,6 +208,16 @@ final class LocalInferenceModel: ObservableObject {
             try? LocalModelStore.remove(id)
             refresh()
         }
+    }
+
+    /// K/V bytes per context token for the *currently selected* precision, taken from whichever model is
+    /// resident (or the first in the library). Independent of whether a turn has run yet.
+    var kvBytesPerTokenForSelection: Double? {
+        let id = engine.residentModelId
+        guard let info = (id.flatMap { want in models.first { $0.id == want } }) ?? models.first,
+              info.kvBytesPerToken > 0 else { return nil }
+        let bits = Double(kvPrecision.displayBits)
+        return Double(info.kvBytesPerToken) * bits / 16.0
     }
 
     func measure(_ id: String, contextTokens: Int = 0) {
@@ -645,12 +677,22 @@ struct LocalInferenceSettingsView: View {
                 }
             }
             .disabled(model.benching || model.models.isEmpty)
-            if let s = model.stats, s.kvBytesPerToken > 0 {
+            // Describe what is selected *now*. This row used to read the previous turn's stats, so it
+            // showed the old setting's numbers until another turn had run — which made a sweep unreadable.
+            if let perToken = model.kvBytesPerTokenForSelection, perToken > 0 {
                 LabeledContent(AppLocalized("K/V per context token")) {
-                    Text(ByteCountFormatter.string(
-                        fromByteCount: Int64(Double(s.kvBytesPerToken) * Double(s.kvBits) / 16.0),
-                        countStyle: .memory))
+                    Text(ByteCountFormatter.string(fromByteCount: Int64(perToken), countStyle: .memory))
                         .font(.callout.monospaced())
+                }
+                let context = max(model.stats?.contextTokens ?? 8192, 1)
+                LabeledContent(AppLocalized("Read per generated token")) {
+                    VStack(alignment: .trailing, spacing: 1) {
+                        Text(ByteCountFormatter.string(
+                            fromByteCount: Int64(perToken * Double(context)), countStyle: .memory))
+                            .font(.callout.monospaced())
+                        Text("\(AppLocalized("K/V at")) \(context) tok · + \(AppLocalized("weights on every token"))")
+                            .font(.caption2).foregroundStyle(.secondary)
+                    }
                 }
             }
         } header: {
