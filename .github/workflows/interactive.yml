@@ -1,0 +1,61 @@
+name: interactive
+
+# A real shell with Xcode 27 on a GitHub-hosted macOS runner.
+#
+# Why this exists: GitHub-hosted runners have no inbound network access, so the trick is a *reverse*
+# tunnel — tmate connects out to tmate.io and prints a connection string. From the iPhone shell:
+#     ssh <tmate-connection-string>
+# (the string is printed in this step's log, and in the Checks tab).
+#
+# What you can do there: run xcodebuild interactively and read real compiler output, `xcrun simctl`
+# boot/install/launch/screenshot, inspect the SDK, install tools, and — the reason it is worth trying —
+# test whether Xcode 27's headless MCP server (RenderPreview) works on a CI runner at all:
+#     sudo xcrun mcp-server enable && xcrun mcp-server status
+#     xcrun mcpbridge
+#
+# SECURITY: this is arbitrary code execution on a machine holding this repo's secrets.
+#  - `limit-access-to-actor: true` restricts the session to the SSH *public* keys registered on the
+#    triggering GitHub account. Requires a public key on your GitHub profile — add it first, or anyone
+#    with the (unguessable but public) URL can connect.
+#  - Never paste App Store Connect keys, tokens or the Apple ID password into the session; the relay
+#    (ssh.tmate.io) is a third party that sees everything.
+#  - dispatch-only, never on pull_request, so a fork cannot open a shell.
+#
+# The 6-hour platform cap is the hard limit; 350 minutes leaves headroom. Everything on the runner dies
+# with it — push or upload anything you want to keep.
+
+on:
+  workflow_dispatch:
+    inputs:
+      note:
+        description: "optional label for this session"
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+jobs:
+  shell:
+    runs-on: xcode-27
+    timeout-minutes: 350
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: What is installed here
+        run: |
+          xcodebuild -version
+          sw_vers
+          echo "--- simulators ---"
+          xcrun simctl list runtimes
+          xcrun simctl list devices available | head -20
+          echo "--- tooling ---"
+          which xcbeautify fastlane xcodes gh || true
+
+      - name: Open the session
+        uses: mxschmitt/action-tmate@v3
+        with:
+          limit-access-to-actor: true
+          # A session that never ends is a session that bills; the timeout above is the real leash.
