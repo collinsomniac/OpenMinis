@@ -39,6 +39,9 @@ struct LocalGenStats: Sendable, Codable {
     var contextTokens: Int = 0
     var kvBytesPerToken: Int = 0
     var kvBits: Int = 16
+    /// Decode rate with the checkpoint's own sampling, measured alongside the greedy pass.
+    var sampledDecodeTokensPerSecond: Double = 0
+    var sampledTokensPerSecondIsSamePath = false
     /// Why this turn did or did not reuse the session's prompt cache. Shown in Performance: "0 reused" has
     /// several very different causes (a new session, a rewritten transcript, a system prompt that changed
     /// above the cached prefix) and they need different fixes, so the decision explains itself.
