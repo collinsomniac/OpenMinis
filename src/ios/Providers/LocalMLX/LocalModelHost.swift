@@ -39,8 +39,13 @@ struct LocalGenStats: Sendable {
     var contextTokens: Int = 0
     var kvBytesPerToken: Int = 0
     var kvBits: Int = 16
+    /// Why this turn did or did not reuse the session's prompt cache. Shown in Performance: "0 reused" has
+    /// several very different causes (a new session, a rewritten transcript, a system prompt that changed
+    /// above the cached prefix) and they need different fixes, so the decision explains itself.
+    var reuseNote: String = ""
 
     var prefillTokensPerSecond: Double { prefillSeconds > 0 ? Double(promptTokens - reusedTokens) / prefillSeconds : 0 }
+    var cacheHitRatio: Double { promptTokens > 0 ? Double(reusedTokens) / Double(promptTokens) : 0 }
     var decodeTokensPerSecond: Double { decodeSeconds > 0 ? Double(generatedTokens) / decodeSeconds : 0 }
 }
 
@@ -192,11 +197,19 @@ actor LocalModelHost {
         params.minP = sampling.minP
         params.repetitionPenalty = sampling.repetitionPenalty
 
-        // [T-nabla-local-mlx-tools] The tool set is part of the prompt (the template renders it), so a
-        // session prefilled without tools must not be reused with them, and vice versa.
-        let toolKey = (tools ?? []).compactMap { ($0["function"] as? [String: any Sendable])?["name"] as? String }
-            .joined(separator: ",")
-        let key = "\(id)|\(system ?? "")|\(thinking)|\(toolKey)"
+        // [T-nabla-local-mlx-session-policy] Only the model and the thinking mode force a new session.
+        //
+        // The system prompt and the tool set are *not* part of this key, because `ChatSession` re-renders
+        // its leading messages from its own current `instructions` and `tools` on every call (see
+        // `streamDetails`, which reads both when it builds `leadingMessages`), and it then applies its
+        // `PromptCacheReusePolicy`: it finds the longest common prefix with the new prompt and
+        // `.trimToCommonPrefix` rewinds the KV cache to it, prefilling only the difference.
+        //
+        // The previous version keyed on the system prompt text and rebuilt the session whenever it changed
+        // — which threw away that machinery for a prompt that is rebuilt every turn. With this app's
+        // ~11.5k-token agent prompt that is the difference between re-prefilling 11.5k tokens (18 s on
+        // device) and prefilling whatever the turn actually added.
+        let key = "\(id)|\(thinking)"
         if sessionKey != key { session = nil; consumed = [] }
 
         // The new input is everything after the last assistant turn: one user message normally, or a
@@ -211,12 +224,35 @@ actor LocalModelHost {
         // agent loop re-sends the whole transcript every turn, so the common case is "same prefix plus
         // one or more new messages", not "identical prefix plus exactly one".
         var continues = false
-        if session != nil, sessionKey == key, consumed.count <= prior.count {
-            continues = Self.isExtension(of: consumed, by: prior)
+        var reuseNote = "new session"
+        if session != nil, sessionKey == key {
+            switch Self.compare(consumed: consumed, prior: prior) {
+            case .matches:
+                continues = true
+                reuseNote = "continuing the session (\(consumed.count) messages cached)"
+            case .lastAssistantRewritten:
+                // The transcript's copy of the previous answer differs from the text this session
+                // generated (a thinking model often keeps the reasoning the app stores without it, and
+                // markdown or whitespace can differ). The cache holds the answer that was actually
+                // produced, which is the truthful context, so continue rather than re-prefill everything.
+                continues = true
+                reuseNote = "continuing; the stored copy of the previous reply differs from the text generated"
+            case .transcriptShorter:
+                reuseNote = "rebuilt: the transcript is shorter than what this session has already generated"
+            case .differs(let at, let what):
+                reuseNote = "rebuilt: history message \(at) differs (\(what))"
+            }
+        } else if session != nil {
+            reuseNote = "rebuilt: model or thinking mode changed"
         }
 
         let s: MLXLMCommon.ChatSession
         if continues, let live = session {
+            // Hand the live session the current prompt and tool set: it re-renders its leading messages
+            // from these every call, so this is how a changed system prompt is applied without losing the
+            // cache. Leaving them stale would silently answer from the previous turn's instructions.
+            live.instructions = system
+            live.tools = tools
             s = live
         } else {
             // `tools` without `toolDispatch`: ChatSession then emits `Generation.toolCall` and returns,
@@ -245,6 +281,7 @@ actor LocalModelHost {
         stats.model = id
         stats.kvBytesPerToken = info.kvBytesPerToken
         stats.kvBits = kv.bits
+        stats.reuseNote = reuseNote
 
         // [T-nabla-local-mlx-thinking-tags] The tags are built from parts on purpose. Written literally
         // in source they survived a file write mangled into the bare words (` thinking` → `thinking`),
@@ -353,9 +390,24 @@ actor LocalModelHost {
     /// Deliberately NOT a chat: a fixed, tiny prompt isolates the engine from the agent loop, from this
     /// app's ~6.6k-token system prompt, and from the UI. That separation is the whole point — it answers
     /// "is the model slow, or is everything around it slow?".
-    func benchmark(_ id: String, maxTokens: Int = 128) async throws -> LocalGenStats {
+    /// Measure the engine with no history, optionally behind a large synthetic prompt.
+    ///
+    /// A short-prompt benchmark is the engine's ceiling and says nothing about the case the app is
+    /// actually in: at ~11.5k tokens of agent prompt, the per-token read is dominated by the KV cache, and
+    /// that is the term the KV precision setting exists to change. Measuring both, at the same device
+    /// temperature, is what makes the two comparable — and it is the only way to tell whether quantising
+    /// K/V helps or hurts, since MLX's quantised attention path dequantises before the matmul.
+    func benchmark(_ id: String, contextTokens: Int = 0, maxTokens: Int = 128) async throws -> LocalGenStats {
         var stats = LocalGenStats(model: id)
-        let history = [LocalTurn(role: "user", text: "Count from 1 to 40 in words, comma separated.")]
+        var text = "Count from 1 to 40 in words, comma separated."
+        if contextTokens > 0 {
+            // The engine reports the exact prompt length, so this only has to be approximately right.
+            let phrase = "The quick brown fox jumps over the lazy dog beside the river at dawn. "
+            let repeats = max(1, (contextTokens * 4) / phrase.count)
+            text = String(repeating: phrase, count: repeats)
+                + "\nIgnore the text above. Count from 1 to 40 in words, comma separated."
+        }
+        let history = [LocalTurn(role: "user", text: text)]
         // A fresh session every time: reusing one would reuse a cache and flatter the number.
         session = nil; sessionKey = nil; consumed = []
         try await stream(modelId: id, system: nil, history: history,
@@ -366,18 +418,39 @@ actor LocalModelHost {
         return last ?? stats
     }
 
-    /// Is `prior` the transcript the session holds, plus more? Split out of the call site because the
-    /// three-field comparison in one expression defeated the type checker.
-    private static func isExtension(of consumed: [(role: String, text: String, images: Int)],
-                                    by prior: [LocalTurn]) -> Bool {
+    /// How the app's transcript relates to what this session has already consumed.
+    enum TranscriptRelation {
+        case matches
+        /// Everything matches except the final assistant entry — the app's stored copy of the reply.
+        case lastAssistantRewritten
+        case transcriptShorter
+        case differs(at: Int, what: String)
+    }
+
+    /// Compare the transcript the app is sending against what this session generated.
+    ///
+    /// [T-nabla-local-mlx-reuse-guard] This is a **correctness** check, not a speed heuristic: the session
+    /// appends new messages to the conversation it holds, so if the app has rewritten an earlier message
+    /// the session would answer from a context that no longer matches the transcript on screen. When the
+    /// prefix does match, the session is handed only the new turns and its own prompt-cache policy reuses
+    /// what it can.
+    private static func compare(consumed: [(role: String, text: String, images: Int)],
+                                prior: [LocalTurn]) -> TranscriptRelation {
+        if prior.count < consumed.count { return .transcriptShorter }
         for (i, was) in consumed.enumerated() {
             let now = prior[i]
-            if was.role != now.role { return false }
-            if was.text.trimmingCharacters(in: .whitespacesAndNewlines)
-                != now.text.trimmingCharacters(in: .whitespacesAndNewlines) { return false }
-            if was.images != now.images.count { return false }
+            let sameText = was.text.trimmingCharacters(in: .whitespacesAndNewlines)
+                == now.text.trimmingCharacters(in: .whitespacesAndNewlines)
+            let sameImages = was.images == now.images.count
+            if was.role == now.role, sameText, sameImages { continue }
+            if i == consumed.count - 1, was.role == "assistant", now.role == "assistant" {
+                return .lastAssistantRewritten
+            }
+            if was.role != now.role { return .differs(at: i, what: "role \(was.role)→\(now.role)") }
+            if !sameImages { return .differs(at: i, what: "image count") }
+            return .differs(at: i, what: "text")
         }
-        return true
+        return .matches
     }
 
     private static func message(_ t: LocalTurn) -> MLXLMCommon.Chat.Message {

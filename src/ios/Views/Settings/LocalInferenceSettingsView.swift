@@ -49,6 +49,8 @@ final class LocalInferenceModel: ObservableObject {
     @Published var stats: LocalGenStats?
     @Published var benching = false
     @Published var benchResult: LocalGenStats?
+    /// The same measurement behind a large synthetic prompt — the case the agent loop is actually in.
+    @Published var benchContextResult: LocalGenStats?
     /// The last load request and its outcome, verbatim. Turns "it just doesn't load" into a readable line.
     @Published var lastAttempt: LocalAttempt?
 
@@ -186,13 +188,14 @@ final class LocalInferenceModel: ObservableObject {
         }
     }
 
-    func measure(_ id: String) {
+    func measure(_ id: String, contextTokens: Int = 0) {
         guard !benching else { return }
         benching = true
-        benchResult = nil
+        if contextTokens == 0 { benchResult = nil } else { benchContextResult = nil }
         Task {
             do {
-                benchResult = try await LocalModelHost.shared.benchmark(id)
+                let r = try await LocalModelHost.shared.benchmark(id, contextTokens: contextTokens)
+                if contextTokens == 0 { benchResult = r } else { benchContextResult = r }
             } catch {
                 errorText = (error as? LocalizedError)?.errorDescription ?? "\(error)"
             }
@@ -519,12 +522,22 @@ struct LocalInferenceSettingsView: View {
                 statRow(AppLocalized("Benchmark"), value: speed(b.decodeTokensPerSecond),
                         detail: AppLocalized("short prompt, no history"))
             }
+            if let b = model.benchContextResult {
+                statRow(AppLocalized("Benchmark @ 8k"), value: speed(b.decodeTokensPerSecond),
+                        detail: "\(b.promptTokens) tok prompt · \(Int(b.prefillTokensPerSecond)) tok/s prefill · KV \(b.kvBits)-bit")
+            }
             if let s = model.stats {
                 statRow(AppLocalized("Last turn"), value: speed(s.decodeTokensPerSecond),
                         detail: "\(s.generatedTokens) tok · TTFT \(Int(s.timeToFirstToken * 1000)) ms")
                 LabeledContent(AppLocalized("Prompt")) {
                     Text("\(s.promptTokens) tok · \(s.reusedTokens) reused · \(Int(s.prefillSeconds * 1000)) ms prefill")
                         .font(.caption.monospaced())
+                }
+                if !s.reuseNote.isEmpty {
+                    LabeledContent(AppLocalized("Cache")) {
+                        Text(s.reuseNote).font(.caption2).foregroundStyle(.secondary)
+                            .multilineTextAlignment(.trailing)
+                    }
                 }
             } else if model.benchResult == nil {
                 Text(AppLocalized("Load a model and Measure it, or send a message, to see real speeds here."))
@@ -622,6 +635,16 @@ struct LocalInferenceSettingsView: View {
                 Text("8-bit after 2k").tag(LocalKVCachePreference.eightBit(from: 2048))
                 Text("4-bit after 2k").tag(LocalKVCachePreference.fourBit(from: 2048))
             }
+            Button {
+                model.measure(engine.residentModelId ?? model.models.first?.id ?? "", contextTokens: 8192)
+            } label: {
+                HStack {
+                    Text(model.benching ? AppLocalized("Measuring…") : AppLocalized("Measure at 8k context"))
+                    Spacer()
+                    Image(systemName: "gauge.with.dots.needle.67percent")
+                }
+            }
+            .disabled(model.benching || model.models.isEmpty)
             if let s = model.stats, s.kvBytesPerToken > 0 {
                 LabeledContent(AppLocalized("K/V per context token")) {
                     Text(ByteCountFormatter.string(
@@ -633,7 +656,7 @@ struct LocalInferenceSettingsView: View {
         } header: {
             Text(AppLocalized("KV cache"))
         } footer: {
-            Text(AppLocalized("K/V is re-read for every generated token, so at long context its size sets the decode rate — often costing more than the weights. Quantising it is where on-device speed comes from; keeping the first 2k tokens in full precision leaves short chats untouched. Changing this rebuilds the cache on the next turn."))
+            Text(AppLocalized("K/V is re-read for every generated token, so at long context its size sets the decode rate — often costing more than the weights. Quantising it is where on-device speed comes from; keeping the first 2k tokens in full precision leaves short chats untouched. Measure at 8k context with each setting to see what it is worth on this device: MLX dequantises K/V before attention, so a smaller cache is not automatically a faster one."))
                 .font(.caption)
         }
     }

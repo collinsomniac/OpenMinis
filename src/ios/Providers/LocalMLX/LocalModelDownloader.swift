@@ -23,6 +23,9 @@ struct ModelDownloadFile: Codable, Sendable, Hashable {
     var name: String
     var size: Int64
     var done: Bool = false
+    /// Bytes of this file already on disk. Counts toward progress while the transfer is in flight, so a
+    /// job made of one 3 GB file is not pinned at "0%" for ten minutes and then 100%.
+    var written: Int64 = 0
 }
 
 /// A download the app is responsible for finishing, persisted so it can be completed after a relaunch.
@@ -33,7 +36,9 @@ struct ModelDownloadJob: Codable, Sendable, Identifiable {
     var started: Date
 
     var totalBytes: Int64 { files.reduce(0) { $0 + $1.size } }
-    var doneBytes: Int64 { files.filter(\.done).reduce(0) { $0 + $1.size } }
+    var doneBytes: Int64 {
+        files.reduce(0) { $0 + ($1.done ? $1.size : min(max($1.written, 0), $1.size)) }
+    }
     var fraction: Double { totalBytes > 0 ? Double(doneBytes) / Double(totalBytes) : 0 }
 }
 
@@ -51,6 +56,22 @@ final class LocalModelDownloader: NSObject, ObservableObject {
     private static let sessionIdentifier = "nabla.onDeviceModelDownload"
     private static let jobsKey = "nabla.modelDownloadJobs"
 
+    // [T-nabla-local-mlx-download-move] `didFinishDownloadingTo` hands over a temp file that iOS deletes
+    // the instant the delegate method returns, so the move has to happen *inside* it, synchronously. But
+    // the delegate runs on a background queue while the job bookkeeping lives on the main actor, and the
+    // original code hopped (`Task { @MainActor in … }`) before touching the file — so every move ran
+    // against a file that no longer existed. Nothing ever landed in the staging directory. That single
+    // defect caused both observed download failures: build 29 marked all twelve files done regardless and
+    // finalised an empty folder (marker in the library, 3 GB orphaned in /tmp), and the size check added
+    // in build 31 then reported it correctly as `vocab.json: expected 6722759 bytes, got 0`.
+    //
+    // This is the bridge: a plain routing table (task description → file name + expected size), written
+    // on the main actor whenever the jobs change, read here under a lock. `nonisolated(unsafe)` is
+    // accurate — the lock, not the actor, is what protects it.
+    private nonisolated(unsafe) let routeLock = NSLock()
+    private nonisolated(unsafe) var routeTable: [String: (name: String, size: Int64)] = [:]
+    private nonisolated(unsafe) var lastReportedBytes: [Int: Int64] = [:]
+
     private override init() {
         super.init()
         let cfg = URLSessionConfiguration.background(withIdentifier: Self.sessionIdentifier)
@@ -62,6 +83,7 @@ final class LocalModelDownloader: NSObject, ObservableObject {
         session = URLSession(configuration: cfg, delegate: self, delegateQueue: nil)
         jobs = Self.loadJobs()
         lastError = nil
+        syncRoutes()
         resumeIfNeeded()
     }
 
@@ -75,9 +97,39 @@ final class LocalModelDownloader: NSObject, ObservableObject {
 
     private func persist() {
         if let d = try? JSONEncoder().encode(jobs) { UserDefaults.standard.set(d, forKey: Self.jobsKey) }
+        syncRoutes()
     }
 
-    private func stageDir(for repo: String) -> URL {
+    /// Publish the routing table for the delegate queue. Cheap (a dozen entries) and called from `persist`,
+    /// which every mutation already goes through.
+    private func syncRoutes() {
+        var table: [String: (name: String, size: Int64)] = [:]
+        for job in jobs {
+            for (i, f) in job.files.enumerated() {
+                table["\(job.id)\u{1F}\(i)"] = (f.name, f.size)
+            }
+        }
+        routeLock.lock(); routeTable = table; routeLock.unlock()
+    }
+
+    /// Is `got` bytes an acceptable realisation of a file the Hub declared as `declared` bytes?
+    ///
+    /// Rejects zero-length and truncated transfers (the failure mode that made the library list nothing)
+    /// while tolerating the small discrepancies that are legitimate: the Hub reports the *stored* size,
+    /// and a response the system decoded for us can come out slightly larger. Nothing is accepted that is
+    /// more than 2% short, and an empty file is never accepted.
+    nonisolated static func sizeIsAcceptable(got: Int64, declared: Int64) -> Bool {
+        guard got > 0 else { return false }
+        guard declared > 0 else { return true }
+        return got >= Int64(Double(declared) * 0.98)
+    }
+
+    nonisolated private func route(for description: String) -> (name: String, size: Int64)? {
+        routeLock.lock(); defer { routeLock.unlock() }
+        return routeTable[description]
+    }
+
+    nonisolated private static func stageDir(for repo: String) -> URL {
         let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("ModelDownloadStaging", isDirectory: true)
         return base.appendingPathComponent(repo.replacingOccurrences(of: "/", with: "__"), isDirectory: true)
@@ -108,7 +160,8 @@ final class LocalModelDownloader: NSObject, ObservableObject {
     }
 
     private func enqueue(_ job: ModelDownloadJob) {
-        let dir = stageDir(for: job.id)
+        syncRoutes()
+        let dir = Self.stageDir(for: job.id)
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         for (index, file) in job.files.enumerated() where !file.done {
             guard let url = Self.resolveURL(repo: job.id, revision: job.revision, file: file.name) else { continue }
@@ -137,7 +190,7 @@ final class LocalModelDownloader: NSObject, ObservableObject {
         }
         jobs.removeAll { $0.id == repo }
         persist()
-        try? FileManager.default.removeItem(at: stageDir(for: repo))
+        try? FileManager.default.removeItem(at: Self.stageDir(for: repo))
     }
 
     func dismiss(repo: String) {
@@ -147,52 +200,68 @@ final class LocalModelDownloader: NSObject, ObservableObject {
 
     // MARK: Delegate callbacks (called on a background queue)
 
-    fileprivate func completed(task: URLSessionDownloadTask, at location: URL?) {
-        guard let desc = task.taskDescription else { return }
+    /// What happened when a finished transfer was taken out of the system's temp directory.
+    enum PlaceOutcome {
+        case placed(name: String)
+        case http(Int)
+        case incomplete(name: String, expected: Int64, got: Int64)
+        case unsupported(String)
+    }
+
+    /// Take the delivered temp file and put it in the staging directory.
+    ///
+    /// [T-nabla-local-mlx-download-move] This runs on the delegate queue and must be synchronous: iOS
+    /// deletes the file the moment `didFinishDownloadingTo` returns. The previous version hopped to the
+    /// main actor first and therefore moved a file that was already gone, which is the defect behind every
+    /// download failure seen on device. Nothing here touches main-actor state — the routing information
+    /// comes from the locked route table, and the outcome is recorded afterwards.
+    nonisolated fileprivate static func place(repo: String, name: String, expected: Int64,
+                                              location: URL, status: Int?) -> PlaceOutcome {
+        if let status, !(200..<300).contains(status) { return .http(status) }
+
+        let fm = FileManager.default
+        // Verify at the SOURCE, before moving anything into the library.
+        let attrs = try? fm.attributesOfItem(atPath: location.path)
+        let got = (attrs?[.size] as? NSNumber)?.int64Value ?? 0
+        guard sizeIsAcceptable(got: got, declared: expected) else {
+            return .incomplete(name: name, expected: expected, got: got)
+        }
+
+        let stage = stageDir(for: repo)
+        try? fm.createDirectory(at: stage, withIntermediateDirectories: true)
+        let dest = stage.appendingPathComponent(name)
+        try? fm.removeItem(at: dest)
+        do {
+            try fm.moveItem(at: location, to: dest)
+        } catch {
+            // Same volume in practice, but the temp directory is not guaranteed to be: fall back to a copy.
+            do { try fm.copyItem(at: location, to: dest) }
+            catch { return .unsupported("\(name): could not be saved (\(error.localizedDescription))") }
+        }
+        return .placed(name: name)
+    }
+
+    /// Apply a placement outcome to the job bookkeeping, on the main actor.
+    fileprivate func record(description desc: String, outcome: PlaceOutcome) {
         let parts = desc.split(separator: "\u{1F}")
         guard parts.count == 2, let index = Int(parts[1]) else { return }
         let repo = String(parts[0])
-        guard let location else { return }
+        guard let i = jobs.firstIndex(where: { $0.id == repo }), index < jobs[i].files.count else { return }
+        let repoName = repo.split(separator: "/").last.map(String.init) ?? repo
 
-        // [T-nabla-local-mlx-http-status] A non-2xx response is NOT a download. A background download task
-        // delivers `didFinishDownloadingTo` even for a 404, with the error page as the "file" — so a
-        // missing file would otherwise be marked done, moved into the library as HTML, and (worse) count
-        // toward "all files finished". Anything outside 2xx is treated as a failure of that file.
-        if let http = task.response as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
-            let repoName = repo.split(separator: "/").last.map(String.init) ?? repo
-            Task { @MainActor in
-                self.lastError = "\(repoName): server returned HTTP \(http.statusCode)"
-            }
-            return
-        }
-
-        // Resolve the job by ID here, on the delegate queue, and again inside the hop: an index captured
-        // across an await can belong to a different job (or none) by the time it is used.
-        guard let job = jobs.first(where: { $0.id == repo }), index < job.files.count else { return }
-        let name = job.files[index].name
-
-        // Move the file synchronously — the system deletes `location` the moment this returns.
-        let stage = stageDir(for: repo)
-        let dest = stage.appendingPathComponent(name)
-        try? FileManager.default.createDirectory(at: stage, withIntermediateDirectories: true)
-        try? FileManager.default.removeItem(at: dest)
-        do { try FileManager.default.moveItem(at: location, to: dest) }
-        catch { try? FileManager.default.copyItem(at: location, to: dest) }
-
-        Task { @MainActor in
-            guard let i = self.jobs.firstIndex(where: { $0.id == repo }),
-                  index < self.jobs[i].files.count else { return }
-            // Only count a file as done if the bytes are actually on disk at the expected size. `done` is
-            // what decides when a download is finished, so it must never be set on faith.
-            let expected = self.jobs[i].files[index].size
-            let actual = (try? FileManager.default.attributesOfItem(atPath: dest.path)[.size] as? Int64) ?? 0
-            if expected > 0, (actual ?? 0) != expected {
-                self.lastError = "\(name): expected \(expected) bytes, got \(actual ?? 0)"
-                return
-            }
-            self.jobs[i].files[index].done = true
-            self.persist()
-            if self.jobs[i].files.allSatisfy(\.done) { self.finalize(repo: repo) }
+        switch outcome {
+        case .http(let code):
+            lastError = "\(repoName): server returned HTTP \(code)"
+        case .incomplete(let name, let expected, let got):
+            lastError = "\(name): expected \(expected) bytes, got \(got)"
+        case .unsupported(let why):
+            lastError = why
+        case .placed(let name):
+            jobs[i].files[index].done = true
+            jobs[i].files[index].written = jobs[i].files[index].size
+            persist()
+            if jobs[i].files.allSatisfy(\.done) { finalize(repo: repo) }
+            _ = name
         }
     }
 
@@ -208,9 +277,15 @@ final class LocalModelDownloader: NSObject, ObservableObject {
         }
     }
 
-    fileprivate func progressed(task: URLSessionDownloadTask, written: Int64, expected: Int64) {
-        // Per-file progress is not needed at UI precision; the job's completed-files fraction is
-        // enough to answer "is it moving", and this keeps main-actor traffic at zero during transfers.
+    fileprivate func progressed(description desc: String, written: Int64) {
+        let parts = desc.split(separator: "\u{1F}")
+        guard parts.count == 2, let index = Int(parts[1]) else { return }
+        guard let i = jobs.firstIndex(where: { $0.id == String(parts[0]) }),
+              index < jobs[i].files.count, !jobs[i].files[index].done else { return }
+        jobs[i].files[index].written = written
+        // Deliberately not persisted: this fires thousands of times per download, and the value is only a
+        // progress readout. A relaunch restarts the count for a file that is still in flight, which is
+        // honest — those bytes are in a temp file we cannot account for until the transfer is delivered.
     }
 
     fileprivate func eventsFinished() {
@@ -235,16 +310,16 @@ final class LocalModelDownloader: NSObject, ObservableObject {
         finalizing.insert(repo)
         defer { finalizing.remove(repo) }
 
-        let staging = stageDir(for: repo)
+        let staging = Self.stageDir(for: repo)
         let fm = FileManager.default
 
         // 1. Every expected file present at its expected size.
         var missing: [String] = []
         for f in job.files {
             let p = staging.appendingPathComponent(f.name).path
-            let size = (try? fm.attributesOfItem(atPath: p)[.size] as? Int64) ?? 0
-            if size == 0 { missing.append(f.name) }
-            else if f.size > 0, size != f.size {
+            let attrs = try? fm.attributesOfItem(atPath: p)
+            let size = (attrs?[.size] as? NSNumber)?.int64Value ?? 0
+            if !Self.sizeIsAcceptable(got: size, declared: f.size) {
                 missing.append("\(f.name) (\(size)/\(f.size) bytes)")
             }
         }
@@ -357,7 +432,22 @@ final class LocalModelDownloader: NSObject, ObservableObject {
 extension LocalModelDownloader: URLSessionDownloadDelegate {
     nonisolated func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask,
                                 didFinishDownloadingTo location: URL) {
-        Task { @MainActor in self.completed(task: downloadTask, at: location) }
+        guard let desc = downloadTask.taskDescription else { return }
+        let status = (downloadTask.response as? HTTPURLResponse)?.statusCode
+
+        // A non-2xx response is not a download: a background task delivers `didFinishDownloadingTo` even
+        // for a 404, with the error page as the "file", which must never be counted as a model file.
+        if let status, !(200..<300).contains(status) {
+            Task { @MainActor in self.record(description: desc, outcome: .http(status)) }
+            return
+        }
+        // No route means the job was cancelled between the request and this callback; drop it.
+        guard let route = route(for: desc) else { return }
+        let repo = String(desc.split(separator: "\u{1F}").first ?? "")
+
+        let outcome = Self.place(repo: repo, name: route.name, expected: route.size,
+                                 location: location, status: status)
+        Task { @MainActor in self.record(description: desc, outcome: outcome) }
     }
 
     nonisolated func urlSession(_ session: URLSession, task: URLSessionTask,
@@ -369,9 +459,17 @@ extension LocalModelDownloader: URLSessionDownloadDelegate {
     nonisolated func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask,
                                 didWriteData bytesWritten: Int64, totalBytesWritten: Int64,
                                 totalBytesExpectedToWrite: Int64) {
-        Task { @MainActor in
-            self.progressed(task: downloadTask, written: totalBytesWritten, expected: totalBytesExpectedToWrite)
-        }
+        // Throttle: a 3 GB file arrives in tens of thousands of callbacks and each main-actor hop competes
+        // with the UI. 512 KB granularity still moves the bar hundreds of times on a large file.
+        let id = downloadTask.taskIdentifier
+        routeLock.lock()
+        let last = lastReportedBytes[id] ?? 0
+        let worthReporting = totalBytesWritten - last >= 512 * 1024
+            || (totalBytesExpectedToWrite > 0 && totalBytesWritten >= totalBytesExpectedToWrite)
+        if worthReporting { lastReportedBytes[id] = totalBytesWritten }
+        routeLock.unlock()
+        guard worthReporting, let desc = downloadTask.taskDescription else { return }
+        Task { @MainActor in self.progressed(description: desc, written: totalBytesWritten) }
     }
 
     nonisolated func urlSessionDidFinishEvents(forBackgroundURLSession session: URLSession) {
