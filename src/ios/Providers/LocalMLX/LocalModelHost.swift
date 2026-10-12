@@ -35,6 +35,10 @@ struct LocalGenStats: Sendable {
     var decodeSeconds: Double = 0
     var timeToFirstToken: Double = 0
     var cancelled = false
+    /// Context tokens this turn's cache held, and the KV bytes they imply.
+    var contextTokens: Int = 0
+    var kvBytesPerToken: Int = 0
+    var kvBits: Int = 16
 
     var prefillTokensPerSecond: Double { prefillSeconds > 0 ? Double(promptTokens - reusedTokens) / prefillSeconds : 0 }
     var decodeTokensPerSecond: Double { decodeSeconds > 0 ? Double(generatedTokens) / decodeSeconds : 0 }
@@ -51,6 +55,8 @@ final class LocalEngineState: ObservableObject {
     @Published var loadingModelId: String?
     @Published var lastError: String?
     @Published var lastStats: LocalGenStats?
+    /// The engine's last refusal, verbatim — shown so a refused load explains itself.
+    @Published var lastRefusal: String?
 
     var hasResident: Bool { residentModelId != nil }
 }
@@ -84,7 +90,7 @@ actor LocalModelHost {
         containerIsVLM = false
         modelId = nil
         Memory.clearCache()
-        await publish(model: nil, loading: nil)
+        await publishResidency(model: nil, loading: nil)
     }
 
     /// Load `id`, refusing when it cannot fit.
@@ -94,27 +100,40 @@ actor LocalModelHost {
     /// memory once the current model has been released. `os_proc_available_memory()` reports what is
     /// left before the jetsam limit, so the check is against the real ceiling rather than physical RAM.
     func load(_ id: String, onProgress: (@Sendable (Double) -> Void)? = nil) async throws -> ModelContainer {
-        if modelId == id, let c = container { return c }
+        if modelId == id, let c = container {
+            // Already resident — but publish anyway: this is the path the UI takes when the user
+            // taps Load on a model the engine already holds, and it must confirm that.
+            await publishResidency(model: id, loading: nil)
+            await publishRefusal(nil)
+            return c
+        }
         let dir = LocalModelStore.dir(for: id)
         guard LocalModelStore.isModelDir(dir) else { throw LocalModelError.notInstalled(id) }
 
         // Release the previous model FIRST, then measure — otherwise the check is against memory we are
         // about to free, and every second load would be refused.
         await unload()
-        await publish(model: nil, loading: id)
+        await publishResidency(model: nil, loading: id)
 
         let info = LocalModelStore.profile(dir)
         if info.kind == .unsupported {
-            await publish(model: nil, loading: nil)
+            await publishResidency(model: nil, loading: nil)
             throw LocalModelError.notInstalled("\(id) (\(info.modelType) is not a chat architecture)")
         }
-        let weights = info.bytes
-        let need = Int64(Double(weights) * 1.35)
+        // Size the check against the context this model will actually run at: its trained context is
+        // often far larger than a phone can hold K/V for, and it is the KV term that decides.
+        let kvPref = LocalKVCachePreference.current
+        let budgetContext = min(info.contextLength ?? 8192, LocalKVCachePreference.assumedContextTokens)
+        let need = LocalModelStore.runCost(for: info, contextTokens: budgetContext, kvBits: kvPref.bits)
         let have = Int64(os_proc_available_memory())
         guard need <= have else {
-            await publish(model: nil, loading: nil)
+            await publishResidency(model: nil, loading: nil)
+            let message = LocalModelError.outOfMemory(needBytes: need, haveBytes: have, model: info.name)
+                .errorDescription ?? "not enough memory"
+            await publishRefusal(message)
             throw LocalModelError.outOfMemory(needBytes: need, haveBytes: have, model: info.name)
         }
+        await publishRefusal(nil)
 
         LocalModelStore.normalizeTokenizer(in: dir)
         // [T-nabla-local-mlx-memory] A small buffer cache on purpose. LoopLab measured 164 tok/s on
@@ -135,7 +154,7 @@ actor LocalModelHost {
         container = c
         modelId = id
         containerIsVLM = (info.kind == .vision)
-        await publish(model: id, loading: nil)
+        await publishResidency(model: id, loading: nil)
         return c
     }
 
@@ -155,6 +174,15 @@ actor LocalModelHost {
         let info = LocalModelStore.profile(LocalModelStore.dir(for: id))
 
         var params = GenerateParameters(maxTokens: maxTokens)
+        // [T-nabla-local-mlx-kv-precision] The single biggest lever on decode speed at long context, and
+        // it is a supported MLX parameter rather than a trick: `kvBits` selects an affine KV cache plan
+        // (GenerateParameters.kvCachePlan() → KVCacheConfiguration.Strategy.affine), `quantizedKVStart`
+        // keeps K/V in full precision for the first N tokens. Halving KV bytes halves the per-token read
+        // that dominates at long context, while a short conversation pays nothing.
+        let kv = LocalKVCachePreference.current
+        params.kvBits = kv.bits
+        params.kvGroupSize = 64
+        params.quantizedKVStart = kv.startTokens
         let sampling = info.sampling
         params.temperature = temperature ?? sampling.temperature
         // 1.0 unless the model asked for a small top-p AND has no cheaper filter to use instead.
@@ -199,6 +227,8 @@ actor LocalModelHost {
         var out = ""
         var stats = LocalGenStats(model: id)
         stats.model = id
+        stats.kvBytesPerToken = info.kvBytesPerToken
+        stats.kvBits = kv.bits
 
         // [T-nabla-local-mlx-thinking-tags] The tags are built from parts on purpose. Written literally
         // in source they survived a file write mangled into the bare words (` thinking` → `thinking`),
@@ -287,7 +317,8 @@ actor LocalModelHost {
         consumed = history.map { ($0.role, $0.text, $0.images.count) }
             + [("assistant", out, 0)]
         stats.timeToFirstToken = (firstTokenAt ?? Date()).timeIntervalSince(started)
-        await publish(stats: stats)
+        stats.contextTokens = stats.promptTokens + stats.generatedTokens
+        await publishStats(stats)
         onEvent(.done(maxTokensHit: false))
     }
 
@@ -330,13 +361,77 @@ actor LocalModelHost {
         return .user(t.text, images: images)
     }
 
-    private func publish(model: String? = nil, loading: String? = nil,
-                         stats: LocalGenStats? = nil) async {
+    /// Residency is published on EVERY path that changes it, including the early return in `load`.
+    ///
+    /// [T-nabla-local-mlx-state-drift] These used to share one `publish(model:loading:stats:)` whose
+    /// `model`/`loading` had default values — so `publish(stats:)` at the end of a turn ALSO set
+    /// `residentModelId = nil`. The engine still held the model while the UI believed nothing was
+    /// loaded: the settings row offered "Load" for a resident model, the send gate claimed "not loaded",
+    /// and tapping Load hit `load`'s early return (`modelId == id`) which published nothing — so the
+    /// state could never recover. One field per concern makes that impossible.
+    private func publishResidency(model: String?, loading: String?) async {
         await MainActor.run {
             let st = LocalEngineState.shared
             st.residentModelId = model
             st.loadingModelId = loading
-            if let stats { st.lastStats = stats }
+        }
+    }
+
+    private func publishStats(_ stats: LocalGenStats) async {
+        await MainActor.run { LocalEngineState.shared.lastStats = stats }
+    }
+
+    private func publishRefusal(_ message: String?) async {
+        await MainActor.run { LocalEngineState.shared.lastRefusal = message }
+    }
+}
+
+/// The user's KV-cache precision choice, and the defaults derived from it.
+///
+/// [T-nabla-local-mlx-kv-precision] Explained as a latency control in Settings, because that is what it
+/// is: K/V is re-read for every generated token, so its size sets the decode rate once the conversation
+/// is long. Full precision is the quality-safe default for short chats; quantisation is where the long
+/// -context speed comes from.
+enum LocalKVCachePreference {
+    /// The context a fit check should assume when a model's own maximum is far beyond what fits.
+    static let assumedContextTokens = 8192
+
+    case full
+    case eightBit(from: Int)
+    case fourBit(from: Int)
+
+    static var current: LocalKVCachePreference {
+        switch UserDefaults.standard.string(forKey: key) {
+        case "full": return .full
+        case "4": return .fourBit(from: Int(UserDefaults.standard.double(forKey: startKey)))
+        default: return .eightBit(from: Int(UserDefaults.standard.double(forKey: startKey)))
+        }
+    }
+
+    static let key = "nabla.localInference.kvPrecision"
+    static let startKey = "nabla.localInference.kvStartTokens"
+
+    /// 16 = full precision (MLX treats nil/16 as uncompressed).
+    var bits: Int {
+        switch self {
+        case .full: return 16
+        case .eightBit: return 8
+        case .fourBit: return 4
+        }
+    }
+
+    var startTokens: Int {
+        switch self {
+        case .full: return 0
+        case .eightBit(let n), .fourBit(let n): return max(0, n)
+        }
+    }
+
+    var label: String {
+        switch self {
+        case .full: return "Full precision"
+        case .eightBit(let n): return n > 0 ? "8-bit after \(n) tokens" : "8-bit"
+        case .fourBit(let n): return n > 0 ? "4-bit after \(n) tokens" : "4-bit"
         }
     }
 }

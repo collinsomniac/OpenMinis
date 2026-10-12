@@ -27,6 +27,18 @@ struct LocalModelInfo: Sendable, Hashable {
     let thinkingCapable: Bool
     /// `text_config.max_position_embeddings`; nil when absent.
     let contextLength: Int?
+    /// Bytes of K/V this model must **read per decoded token per context token** — i.e. KV bytes per
+    /// token of context. This is the number that decides on-device decode speed, because at long context
+    /// it dwarfs the weights:
+    ///
+    ///   Qwen3-0.6B: 28 layers x 2 (K,V) x 8 kv-heads x 128 head-dim x 2 bytes = 112 KB / context token
+    ///   → at a 6.6k-token prompt that is ~740 MB read for EVERY generated token,
+    ///     against 335 MB of weights. Total ~1.1 GB per token ⇒ ~51 tok/s at ~56 GB/s.
+    ///
+    /// ...which is why a short-prompt benchmark reads ~160 tok/s and a real turn reads ~40. Only layers
+    /// that keep a growing attention cache count: a hybrid model's linear-attention (Gated DeltaNet)
+    /// layers hold a constant-size state, so counting them would overstate its cost enormously.
+    let kvBytesPerToken: Int
     /// Sampler recommendations from the model's own generation_config.json.
     let sampling: LocalSampling
 
@@ -143,6 +155,23 @@ enum LocalModelStore {
             .sorted { $0.name.lowercased() < $1.name.lowercased() }
     }
 
+    /// Bytes needed to RUN this model at `contextTokens` of conversation.
+    ///
+    /// [T-nabla-local-mlx-fit] Not `weights x 1.35`. That first attempt scaled the weights, which both
+    /// overstated small models and understated nothing — the real second term is the KV cache, and it is
+    /// knowable from the config (`kvBytesPerToken`). Weighting weights instead produced a warning that a
+    /// 5.14 GB model "needs 6.93 GB" when in truth it needs ~5.7 GB and would have fitted.
+    nonisolated static func runCost(for info: LocalModelInfo, contextTokens: Int,
+                                    kvBits: Int) -> Int64 {
+        // Quantised K/V is stored at `kvBits` with a per-group scale; 16 -> 1.0 (full precision).
+        let kvScale = Double(kvBits) / 16.0
+        let kvBytes = Int64(Double(info.kvBytesPerToken) * kvScale * Double(max(0, contextTokens)))
+        // Activations, the logit projection and the runtime's own buffers. Measured on this device:
+        // a 0.6B model at 6.6k context needs roughly this much beyond weights + KV.
+        let working: Int64 = 320 * 1024 * 1024
+        return info.bytes + kvBytes + working
+    }
+
     /// Weights on disk. SafeTensor shards only: configs and tokenizers are noise at this scale, and a
     /// directory can hold a stray README that would distort a memory estimate.
     nonisolated static func weightBytes(in d: URL) -> Int64 {
@@ -199,10 +228,28 @@ enum LocalModelStore {
         }
 
         let ctx = (textCfg["max_position_embeddings"] as? NSNumber)?.intValue
+
+        // KV geometry. Hybrid stacks declare `layer_types`; when they do, only the attention layers keep
+        // a growing cache (Qwen3.5: 8 of 32 — the rest are linear attention with fixed state).
+        let layers = (textCfg["num_hidden_layers"] as? NSNumber)?.intValue ?? 0
+        let attentionLayers: Int = {
+            if let types = textCfg["layer_types"] as? [String] {
+                return types.filter { $0.contains("full_attention") || $0 == "attention" }.count
+            }
+            return layers
+        }()
+        let kvHeads = (textCfg["num_key_value_heads"] as? NSNumber)?.intValue ?? 0
+        let headDim = (textCfg["head_dim"] as? NSNumber)?.intValue
+            ?? ((textCfg["hidden_size"] as? NSNumber)?.intValue ?? 0)
+                / max(1, (textCfg["num_attention_heads"] as? NSNumber)?.intValue ?? 1)
+        // fp16 K and V while uncompressed — the baseline the estimate is compared against.
+        let kvPerToken = attentionLayers * 2 * kvHeads * headDim * 2
+
         return LocalModelInfo(
             id: id, dir: d, bytes: weightBytes(in: d), modelType: modelType, kind: kind,
             thinkingCapable: template.contains("enable_thinking"),
             contextLength: ctx,
+            kvBytesPerToken: kvPerToken,
             sampling: sampling)
     }
 

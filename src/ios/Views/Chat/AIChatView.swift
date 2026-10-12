@@ -863,7 +863,7 @@ struct AIChatView: View {
                 Task {
                     do {
                         _ = try await LocalModelHost.shared.load(entry.model.id)
-                        await MainActor.run { performSend() }
+                        await MainActor.run { performSend(bypassLocalGate: true) }
                     } catch {
                         // The engine refuses a model that cannot fit, and says why. Surfacing that here
                         // is the whole point of refusing: a readable message beats a jetsam kill.
@@ -4962,7 +4962,7 @@ struct AIChatView: View {
     }
 
     /// Dismiss keyboard (commit dictation/marked text) before sending.
-    private func performSend() {
+    private func performSend(bypassLocalGate: Bool = false) {
         // Intercept slash commands — execute instead of sending to LLM
         if vm.tryExecuteInputAsSlashCommand() { return }
 
@@ -4971,12 +4971,23 @@ struct AIChatView: View {
         // into a cold engine used to be how the app was killed — the load happened mid-turn, on top of
         // whatever was already resident. Ask first, and say what is loaded now, so the choice (and the
         // unload it implies) is the user's.
-        if let entry = vm.resolveCurrentEntry(),
+        if !bypassLocalGate,
+           let entry = vm.resolveCurrentEntry(),
            let instance = ProviderConfigStore.shared.instance(for: entry.providerInstanceId),
-           instance.providerType == .localMLX,
-           LocalEngineState.shared.residentModelId != entry.model.id {
-            pendingLocalEntry = entry
-            showLoadBeforeSend = true
+           instance.providerType == .localMLX {
+            // Ask the ENGINE, not only the main-actor mirror. The mirror is a convenience for view code;
+            // a gate that decides whether to send must not be able to disagree with the thing that will
+            // actually run the model.
+            Task { @MainActor in
+                let status = await LocalModelHost.shared.status()
+                let resident = status.resident ? status.modelId : nil
+                if resident == entry.model.id {
+                    performSend(bypassLocalGate: true)
+                } else {
+                    pendingLocalEntry = entry
+                    showLoadBeforeSend = true
+                }
+            }
             return
         }
 

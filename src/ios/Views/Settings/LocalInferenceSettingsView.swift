@@ -14,6 +14,8 @@ import FoundationModels
 // page manages the library, the folder it lives in, the memory question, and the measurements that
 // answer "why is it slow?".
 
+struct LocalAttempt: Sendable { var id: String; var outcome: String }
+
 @MainActor
 final class LocalInferenceModel: ObservableObject {
     @Published var models: [LocalModelInfo] = []
@@ -28,6 +30,10 @@ final class LocalInferenceModel: ObservableObject {
     @Published var errorText: String?
     @Published var downloadField: String = ""
     @Published var freeBytes: Int64 = 0
+    @Published var lowPowerMode = false
+    @Published var batteryLevel: Int = -1
+    @Published var batteryState: String = "?"
+    @Published var kvPrecision: LocalKVCachePreference = .eightBit(from: 2048)
     // add-model flow
     @Published var inspecting = false
     @Published var inspection: LocalModelInspection?
@@ -40,6 +46,8 @@ final class LocalInferenceModel: ObservableObject {
     @Published var stats: LocalGenStats?
     @Published var benching = false
     @Published var benchResult: LocalGenStats?
+    /// The last load request and its outcome, verbatim. Turns "it just doesn't load" into a readable line.
+    @Published var lastAttempt: LocalAttempt?
 
     private static let byteFormatter: ByteCountFormatter = {
         let f = ByteCountFormatter()
@@ -71,6 +79,17 @@ final class LocalInferenceModel: ObservableObject {
             gpuWorkingSetBytes = device.recommendedMaxWorkingSetSize
         }
         appleIntelligenceStatus = Self.appleIntelligenceAvailability()
+        lowPowerMode = ProcessInfo.processInfo.isLowPowerModeEnabled
+        UIDevice.current.isBatteryMonitoringEnabled = true
+        let level = UIDevice.current.batteryLevel
+        batteryLevel = level < 0 ? -1 : Int(level * 100)
+        switch UIDevice.current.batteryState {
+        case .charging: batteryState = "charging"
+        case .full: batteryState = "full"
+        case .unplugged: batteryState = "on battery"
+        default: batteryState = "unknown"
+        }
+        kvPrecision = LocalKVCachePreference.current
 
         Task {
             let s = await LocalModelHost.shared.status()
@@ -87,28 +106,45 @@ final class LocalInferenceModel: ObservableObject {
 
     // MARK: - Library actions
 
-    /// Will this model fit, given the weights on disk? Mirrors the engine's admission rule so the UI can
-    /// warn *before* a load is attempted (and before a download is wasted).
+    /// Will this model fit? Mirrors the engine's admission rule — weights **plus the KV cache the
+    /// conversation will need** — so the warning is actionable rather than alarming. (A weight-only
+    /// multiplier previously claimed a 5.14 GB model "needs 6.93 GB"; its real cost is ~5.7 GB.)
     nonisolated static func fit(_ info: LocalModelInfo, available: Int) -> (fits: Bool, note: String) {
-        let need = Int64(Double(info.bytes) * 1.35)
+        let kv = LocalKVCachePreference.current
+        let ctx = min(info.contextLength ?? 8192, LocalKVCachePreference.assumedContextTokens)
+        let need = LocalModelStore.runCost(for: info, contextTokens: ctx, kvBits: kv.bits)
         let have = Int64(available)
-        if need <= have { return (true, "fits") }
         let f = ByteCountFormatter()
-        return (false, "needs ~\(f.string(fromByteCount: need)) — more than the \(f.string(fromByteCount: have)) free")
+        let kvPerToken = Double(info.kvBytesPerToken) * Double(kv.bits) / 16.0
+        let kvString = ByteCountFormatter.string(fromByteCount: Int64(kvPerToken), countStyle: .memory)
+        if need <= have {
+            return (true, "weights \(f.string(fromByteCount: info.bytes)), K/V \(kvString)/token")
+        }
+        return (false, "needs ~\(f.string(fromByteCount: need)) at \(ctx) tokens of context — more than the \(f.string(fromByteCount: have)) free. Lower KV precision, or use a smaller quantisation.")
     }
 
+    /// [T-nabla-local-mlx-load-not-wedging] `guard loading == nil else { return }` made one stuck in-flight
+    /// flag disable the button permanently — and because the engine's early return for an
+    /// already-resident model published nothing, the row could never become resident again. Now: only
+    /// one load at a time, the flag is cleared on every exit path, and every outcome is recorded.
     func load(_ id: String) {
         guard loading == nil else { return }
         loading = id
         errorText = nil
+        lastAttempt = LocalAttempt(id: id, outcome: "loading…")
         Task {
+            defer { loading = nil }
+            let started = Date()
             do {
                 _ = try await LocalModelHost.shared.load(id)
+                let secs = Date().timeIntervalSince(started)
+                lastAttempt = LocalAttempt(id: id, outcome: String(format: "loaded in %.1f s", secs))
                 errorText = nil
             } catch {
-                errorText = (error as? LocalizedError)?.errorDescription ?? "\(error)"
+                let message = (error as? LocalizedError)?.errorDescription ?? "\(error)"
+                errorText = message
+                lastAttempt = LocalAttempt(id: id, outcome: "refused: \(message)")
             }
-            loading = nil
             refresh()
         }
     }
@@ -252,8 +288,10 @@ struct LocalInferenceSettingsView: View {
             downloadsSection
             addSection
             performanceSection
+            kvSection
             storageSection
             enginesSection
+            diagnosticsSection
             hardwareSection
             footnoteSection
         }
@@ -332,6 +370,8 @@ struct LocalInferenceSettingsView: View {
             if !fit.fits {
                 Label(fit.note, systemImage: "exclamationmark.triangle.fill")
                     .font(.caption2).foregroundStyle(Color.orange)
+            } else {
+                Text(fit.note).font(.caption2).foregroundStyle(.tertiary)
             }
             HStack(spacing: 8) {
                 Spacer()
@@ -509,6 +549,60 @@ struct LocalInferenceSettingsView: View {
         }
     }
 
+    private var kvSection: some View {
+        Section {
+            Picker(AppLocalized("KV cache precision"), selection: Binding(
+                get: { model.kvPrecision },
+                set: { newValue in
+                    model.kvPrecision = newValue
+                    UserDefaults.standard.set(
+                        { switch newValue { case .full: return "full"; case .fourBit: return "4"; case .eightBit: return "8" } }(),
+                        forKey: LocalKVCachePreference.key)
+                    UserDefaults.standard.set(Double(newValue.startTokens), forKey: LocalKVCachePreference.startKey)
+                    // The cache plan changes, so the next turn rebuilds it (the library compares plans).
+                })) {
+                Text("Full precision").tag(LocalKVCachePreference.full)
+                Text("8-bit").tag(LocalKVCachePreference.eightBit(from: 0))
+                Text("8-bit after 2k").tag(LocalKVCachePreference.eightBit(from: 2048))
+                Text("4-bit after 2k").tag(LocalKVCachePreference.fourBit(from: 2048))
+            }
+            if let s = model.stats, s.kvBytesPerToken > 0 {
+                LabeledContent(AppLocalized("K/V per context token")) {
+                    Text(ByteCountFormatter.string(
+                        fromByteCount: Int64(Double(s.kvBytesPerToken) * Double(s.kvBits) / 16.0),
+                        countStyle: .memory))
+                        .font(.callout.monospaced())
+                }
+            }
+        } header: {
+            Text(AppLocalized("KV cache"))
+        } footer: {
+            Text(AppLocalized("K/V is re-read for every generated token, so at long context its size sets the decode rate — often costing more than the weights. Quantising it is where on-device speed comes from; keeping the first 2k tokens in full precision leaves short chats untouched. Changing this rebuilds the cache on the next turn."))
+                .font(.caption)
+        }
+    }
+
+    private var diagnosticsSection: some View {
+        Group {
+            if model.lastAttempt != nil || engine.lastRefusal != nil {
+                Section(AppLocalized("Diagnostics")) {
+                    if let a = model.lastAttempt {
+                        LabeledContent(AppLocalized("Last load")) {
+                            VStack(alignment: .trailing, spacing: 1) {
+                                Text(a.id.split(separator: "/").last.map(String.init) ?? a.id)
+                                    .font(.caption.monospaced())
+                                Text(a.outcome).font(.caption2).foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                    if let r = engine.lastRefusal {
+                        Text(r).font(.caption).foregroundStyle(Color.orange)
+                    }
+                }
+            }
+        }
+    }
+
     private var hardwareSection: some View {
         Section(AppLocalized("Hardware")) {
             LabeledContent(AppLocalized("Memory available")) {
@@ -523,6 +617,14 @@ struct LocalInferenceSettingsView: View {
             LabeledContent(AppLocalized("GPU")) { Text(model.gpuName).font(.callout) }
             LabeledContent(AppLocalized("GPU working set")) {
                 Text(model.format(Int64(clamping: model.gpuWorkingSetBytes))).font(.callout.monospaced())
+            }
+            LabeledContent(AppLocalized("Low Power Mode")) {
+                Text(model.lowPowerMode ? AppLocalized("on — expect roughly half speed") : AppLocalized("off"))
+                    .foregroundStyle(model.lowPowerMode ? Color.orange : Color.secondary)
+            }
+            LabeledContent(AppLocalized("Battery")) {
+                Text(model.batteryLevel >= 0 ? "\(model.batteryLevel)% · \(model.batteryState)" : model.batteryState)
+                    .foregroundStyle(model.batteryLevel >= 0 && model.batteryLevel < 25 ? Color.orange : Color.secondary)
             }
         }
     }
