@@ -19,6 +19,9 @@ struct LocalAttempt: Sendable { var id: String; var outcome: String }
 @MainActor
 final class LocalInferenceModel: ObservableObject {
     @Published var models: [LocalModelInfo] = []
+    /// Library folders that are not loadable models — a download that did not finish, or a folder that
+    /// lost its weights. Listed so they can be seen and deleted; `installed()` deliberately hides them.
+    @Published var incomplete: [(id: String, bytes: Int64)] = []
     @Published var libraryPath: String = ""
     @Published var usingCustomFolder = false
     @Published var availableMemoryBytes: Int = 0
@@ -61,6 +64,22 @@ final class LocalInferenceModel: ObservableObject {
     func refresh() {
         LocalModelStore.invalidateInstalledCache()
         models = LocalModelStore.installed()
+        let fm = FileManager.default
+        let root = LocalModelStore.root
+        let good = Set(models.map { $0.dir.standardizedFileURL.path })
+        incomplete = ((try? fm.contentsOfDirectory(at: root, includingPropertiesForKeys: [.isDirectoryKey])) ?? [])
+            .filter { (try? $0.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true }
+            .filter { !good.contains($0.standardizedFileURL.path) }
+            .map { dir in
+                let id = dir.lastPathComponent.replacingOccurrences(of: "__", with: "/")
+                var total: Int64 = 0
+                if let e = fm.enumerator(at: dir, includingPropertiesForKeys: [.fileSizeKey]) {
+                    for case let u as URL in e {
+                        total += Int64((try? u.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0)
+                    }
+                }
+                return (id: id, bytes: total)
+            }
         libraryPath = LocalModelStore.root.path
         usingCustomFolder = LocalModelStore.isUsingCustomFolder
         availableMemoryBytes = Self.availableMemory()
@@ -285,6 +304,7 @@ struct LocalInferenceSettingsView: View {
     var body: some View {
         List {
             modelsSection
+            incompleteSection
             downloadsSection
             addSection
             performanceSection
@@ -392,6 +412,37 @@ struct LocalInferenceSettingsView: View {
         .padding(.vertical, 2)
     }
 
+    private var incompleteSection: some View {
+        Group {
+            if !model.incomplete.isEmpty {
+                Section {
+                    ForEach(model.incomplete, id: \.id) { item in
+                        HStack {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(item.id.split(separator: "/").last.map(String.init) ?? item.id)
+                                    .font(.subheadline)
+                                Text(item.bytes > 0
+                                     ? "\(model.format(item.bytes)) — not a loadable model"
+                                     : AppLocalized("empty folder — a download that did not finish"))
+                                    .font(.caption2).foregroundStyle(Color.orange)
+                            }
+                            Spacer()
+                            Button(role: .destructive) { model.delete(item.id) } label: {
+                                Text(AppLocalized("Delete"))
+                            }
+                            .font(.caption)
+                        }
+                    }
+                } header: {
+                    Text(AppLocalized("Incomplete"))
+                } footer: {
+                    Text(AppLocalized("These folders are not runnable models, so they never appear in the model list or the picker. Delete one and download again."))
+                        .font(.caption)
+                }
+            }
+        }
+    }
+
     private var downloadsSection: some View {
         Group {
             if !downloads.jobs.isEmpty {
@@ -420,9 +471,16 @@ struct LocalInferenceSettingsView: View {
                     }
                 } header: {
                     Text(AppLocalized("Downloading"))
+                } header: {
+                    Text(AppLocalized("Downloading"))
                 } footer: {
-                    Text(AppLocalized("Downloads continue while the app is in the background."))
-                        .font(.caption)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(AppLocalized("Downloads continue while the app is in the background."))
+                        if let e = downloads.lastError {
+                            Text(e).foregroundStyle(Color.orange)
+                        }
+                    }
+                    .font(.caption)
                 }
             }
         }
