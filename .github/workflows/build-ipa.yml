@@ -86,6 +86,7 @@ jobs:
             build/dd/SourcePackages
             build/dd/Build
             build/dd/ModuleCache.noindex
+            build/ccache
           key: dd-v1-${{ hashFiles('src/ios/Minis.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved', 'src/ios/Minis.xcodeproj/project.pbxproj') }}-${{ github.run_number }}
           restore-keys: |
             dd-v1-${{ hashFiles('src/ios/Minis.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved', 'src/ios/Minis.xcodeproj/project.pbxproj') }}-
@@ -99,16 +100,36 @@ jobs:
           #   supplies #hubDownloader()/#huggingFaceTokenizerLoader()). Xcode refuses to run an
           #   untrusted macro package, and on a fresh CI runner nothing has been trusted yet.
           # -skipPackagePluginValidation: same class of gate for build plugins.
+          # Release defaults to SWIFT_COMPILATION_MODE=wholemodule, which compiles all ~430 app Swift
+          # files as ONE serial job — the main reason a 3-vCPU runner takes 25 minutes. incremental lets
+          # files compile in parallel and, with the content cache below, reuses per-file results.
+          #
+          # COMPILATION_CACHE_* is Xcode 26+ content-based compilation caching: it keys artifacts by
+          # content, so it survives source edits that don't change a file's inputs. The CAS lives inside
+          # the workspace so the actions/cache step above can carry it between runs.
+          #
+          # The two -solver-* flags used to be here to get past a type-checker timeout in ContentView.
+          # They raise the expression solver's thresholds to 600s / 2GB, i.e. they instruct the compiler
+          # to brute-force hard expressions instead of failing - which is the likeliest cause of the same
+          # commit taking 8 minutes on one run and 32 on another. The cure is fixing the hotspot, not
+          # raising the ceiling. If this build times out in the type checker, split that expression
+          # rather than reinstating the flags.
           xcodebuild -project src/ios/Minis.xcodeproj -scheme Minis \
             -configuration Release -destination 'generic/platform=iOS' \
             -derivedDataPath build/dd \
             -parallelizeTargets \
+            -showBuildTimingSummary \
             -skipMacroValidation -skipPackagePluginValidation \
             CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO \
             COMPILER_INDEX_STORE_ENABLE=NO \
             DEBUG_INFORMATION_FORMAT=dwarf \
+            SWIFT_COMPILATION_MODE=incremental \
+            COMPILATION_CACHE_ENABLE_CACHING=YES \
+            COMPILATION_CACHE_CAS_PATH=$PWD/build/ccache \
+            COMPILATION_CACHE_LIMIT_SIZE=2000000000 \
+            SWIFT_ENABLE_COMPILE_CACHE=YES \
+            CLANG_ENABLE_COMPILE_CACHE=YES \
             CURRENT_PROJECT_VERSION=$BUILD \
-            'OTHER_SWIFT_FLAGS=$(inherited) -Xfrontend -solver-expression-time-threshold=600 -Xfrontend -solver-memory-threshold=2000000000' \
             build 2>&1 | tee build.log | grep -E "error:|BUILD (SUCCEEDED|FAILED)" | head -200
 
       - name: Upload build log
