@@ -1,5 +1,28 @@
 # OpenMinis
 
+> [!NOTE]
+> **This fork is a prototype ("Nabla") and shares its app ID with other prototypes.** A free Apple ID can
+> register only 10 app IDs per week, so this app's ID (`io.github.collinsomniac.nabla`, signed as
+> `io.github.collinsomniac.nabla.<TEAM_ID>`) serves as **morphappios**, a slot that holds whichever app
+> was signed into it last. If another app sits in Nabla's place on the phone, Nabla was replaced.
+> Reinstall it to get it back. Its data is lost when it is replaced.
+>
+> **Switching the slot (for agents).** iOS identifies an installed app only by its bundle ID, so moving
+> apps in and out of the slot is a signing-time change, with no rebuild. Use
+> [`appman-ios`](https://github.com/collinsomniac/appman-ios):
+>
+> ```
+> appman slot morphappios io.github.collinsomniac.nabla       # once
+> appman deploy Other.ipa --as morphappios                    # another app takes the slot
+> appman deploy Nabla.ipa --as morphappios                    # Nabla takes it back
+> appman status                                               # profile validity per app ID
+> ```
+>
+> `--as` rewrites `CFBundleIdentifier` (and extension IDs under it) before signing. With a valid cached
+> profile it signs offline, with no Apple sign-in. Each app keeps its own name and icon; `--name` sets
+> another. The profile grants `com.apple.developer.kernel.increased-memory-limit`, so any app in the slot
+> can use about 6 GB.
+
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
 [![Platforms](https://img.shields.io/badge/Platforms-iOS%20%7C%20Android-lightgrey.svg)](#beta-programme)
 
